@@ -1,0 +1,310 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO 基础标签 -->
+    <title>云音乐 - 在线音乐播放器 | 多平台搜索、高品质播放</title>
+    <meta name="description" content="云音乐是一款功能强大的在线音乐播放器，支持网易云、QQ音乐等12个平台搜索，提供高品质无损音乐播放、歌单管理和歌词同步显示功能。">
+    <meta name="keywords" content="在线音乐播放器,云音乐,音乐搜索,歌单解析,无损音乐,网易云音乐,QQ音乐">
+    <meta name="author" content="truelife0958">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph 标签 (社交媒体分享) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="云音乐 - 在线音乐播放器">
+    <meta property="og:description" content="支持12个音乐平台搜索，高品质播放，歌单管理">
+    <meta property="og:site_name" content="云音乐">
+    <meta property="og:locale" content="zh_CN">
+
+    <!-- 主题色 -->
+    <meta name="theme-color" content="#ff6b6b">
+    <meta name="msapplication-TileColor" content="#ff6b6b">
+
+    <!-- Favicon (音乐符号图标) -->
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23ff6b6b'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>♪</text></svg>">
+
+    <!-- PWA 支持 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="云音乐">
+    <link rel="apple-touch-icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='22' fill='%23ff6b6b'/><text x='90' y='125' font-size='100' text-anchor='middle' fill='white'>♪</text></svg>">
+
+    <!-- 样式表 -->
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="bg-animation"></div>
+    <div class="bg-overlay"></div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-music"></i>
+                <span>云音乐</span>
+            </div>
+            <div class="search-container">
+                <div class="search-wrapper">
+                    <input type="text" class="search-input" placeholder="搜索音乐、歌手、专辑..." id="searchInput">
+                    <select class="source-select" id="sourceSelect">
+                        <option value="netease">网易云音乐</option>
+                        <option value="tencent">QQ音乐</option>
+                        <option value="kugou">酷狗音乐</option>
+                        <option value="migu">咪咕音乐</option>
+                        <option value="ximalaya">喜马拉雅</option>
+                    </select>
+                    <button class="search-btn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div class="main-container">
+        <div class="content-section">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="hot">
+                    <i class="fas fa-fire"></i> 热门
+                </button>
+                <button class="tab-btn" data-tab="ranking">
+                    <i class="fas fa-trophy"></i> 排行榜
+                </button>
+                <button class="tab-btn" data-tab="playlist">
+                    <i class="fas fa-list-ul"></i> 歌单
+                </button>
+                <button class="tab-btn" data-tab="my">
+                    <i class="fas fa-user"></i> 我的
+                </button>
+            </div>
+            <!-- 热门推荐标签 -->
+            <div id="hotTab" class="tab-content active">
+                <div class="section-header">
+                    <h3><i class="fas fa-fire"></i> 热门推荐</h3>
+                    <button class="explore-radar-btn" id="exploreRadarBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>换一批</span>
+                    </button>
+                </div>
+                <div class="search-results" id="searchResults">
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <div>在上方搜索框输入关键词或点击换一批</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 排行榜标签 -->
+            <div id="rankingTab" class="tab-content">
+                <div class="ranking-header">
+                    <h3><i class="fas fa-trophy"></i> 排行榜</h3>
+                    <div class="ranking-tabs">
+                        <button class="ranking-tab active" data-rank="hot">热歌榜</button>
+                        <button class="ranking-tab" data-rank="new">新歌榜</button>
+                        <button class="ranking-tab" data-rank="soar">飙升榜</button>
+                    </div>
+                </div>
+                <div class="search-results" id="rankingResults">
+                    <div class="empty-state">
+                        <i class="fas fa-chart-line"></i>
+                        <div>点击上方榜单标签加载数据</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 歌单标签（合并了解析和保存的歌单） -->
+            <div id="playlistTab" class="tab-content">
+                <!-- 解析网易云歌单 -->
+                <div class="playlist-input-container">
+                    <input type="text" id="playlistIdInput" class="playlist-input"
+                        placeholder="输入网易云歌单ID (如: 60198) 或链接...">
+                    <button class="playlist-btn">
+                        <i class="fas fa-cloud-download-alt"></i> 解析
+                    </button>
+                </div>
+
+                <!-- 我保存的歌单 -->
+                <div class="saved-playlists-container">
+                    <div class="saved-playlists-header">
+                        <h4>
+                            <i class="fas fa-bookmark"></i>
+                            我保存的歌单
+                            <i class="fas fa-chevron-up" id="toggleIcon"></i>
+                        </h4>
+                        <button class="clear-all-btn" title="清空所有歌单">
+                            <i class="fas fa-trash"></i> 清空
+                        </button>
+                    </div>
+                    <div class="saved-playlists-list" id="savedPlaylistsList">
+                        <div class="empty-saved-state">
+                            <i class="fas fa-music"></i>
+                            <div>暂无保存的歌单</div>
+                            <div style="margin-top: 8px; font-size: 12px; opacity: 0.7;">
+                                解析网易云歌单后可保存到这里
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 歌单内容显示 -->
+                <div class="search-results" id="parseResults">
+                    <div class="empty-state">
+                        <i class="fas fa-list-music"></i>
+                        <div>输入歌单ID解析或点击已保存的歌单</div>
+                        <div style="margin-top: 10px; font-size: 12px; color: rgba(255, 255, 255, 0.5);">
+                            推荐：<span class="quick-id"
+                                onclick="document.getElementById('playlistIdInput').value='60198'">60198</span> ·
+                            <span class="quick-id"
+                                onclick="document.getElementById('playlistIdInput').value='3778678'">3778678</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 我的标签 -->
+            <div id="myTab" class="tab-content">
+                <!-- 收藏列表 -->
+                <div class="my-section">
+                    <div class="my-section-header">
+                        <h3><i class="fas fa-heart"></i> 我的收藏</h3>
+                        <span class="count-badge" id="favoritesCount">0</span>
+                    </div>
+                    <div class="search-results" id="favoritesResults">
+                        <div class="empty-state">
+                            <i class="far fa-heart"></i>
+                            <div>暂无收藏的歌曲</div>
+                            <div style="margin-top: 8px; font-size: 12px; opacity: 0.7;">
+                                点击歌曲旁的爱心添加收藏
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 播放历史 -->
+                <div class="my-section">
+                    <div class="my-section-header">
+                        <h3><i class="fas fa-history"></i> 播放历史</h3>
+                        <button class="clear-history-btn" id="clearHistoryBtn">
+                            <i class="fas fa-eraser"></i> 清空
+                        </button>
+                    </div>
+                    <div class="search-results" id="historyResults">
+                        <div class="empty-state">
+                            <i class="fas fa-history"></i>
+                            <div>暂无播放记录</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="player-section">
+            <div class="player-content">
+                <div class="current-song">
+                    <div class="current-cover-container">
+                        <img class="current-cover" id="currentCover" loading="lazy"
+                            src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIwIiBoZWlnaHQ9IjIyMCIgdmlld0JveD0iMCAwIDIyMCAyMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMjAiIGhlaWdodD0iMjIwIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU5LDAuMSkiIHJ4PSIyMCIvPgo8cGF0aCBkPSJNMTEwIDcwTDE0MCAxMTBIMTIwVjE1MEg5MFYxMTBINzBMMTEwIDcwWiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjMpIi8+Cjwvc3ZnPgo="
+                            alt="专辑封面">
+                    </div>
+                    <div class="current-info">
+                        <h3 id="currentTitle">未选择歌曲</h3>
+                        <p id="currentArtist">请搜索并选择要播放的歌曲</p>
+                    </div>
+                </div>
+                <div class="player-controls">
+                    <button class="control-btn small" id="playerFavoriteBtn" title="添加到我的喜欢">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <button class="control-btn small">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button class="control-btn play-btn" id="playBtn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="control-btn small">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                    <button class="control-btn small" id="playModeBtn" title="列表循环">
+                        <i class="fas fa-repeat"></i>
+                    </button>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="time-info">
+                        <span id="currentTime">0:00</span>
+                        <span id="totalTime">0:00</span>
+                    </div>
+                </div>
+                <div class="volume-container">
+                    <i class="fas fa-volume-up volume-icon"></i>
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
+                </div>
+                <div class="quality-download-container">
+                    <select class="quality-select" id="qualitySelect">
+                        <option value="128">标准 128K</option>
+                        <option value="192">较高 192K</option>
+                        <option value="320">高品质 320K</option>
+                        <option value="740" selected>无损 FLAC</option>
+                        <option value="999">Hi-Res</option>
+                    </select>
+                    <button class="download-btn" id="downloadSongBtn" disabled>
+                        <i class="fas fa-download"></i>
+                        <span>下载音乐</span>
+                    </button>
+                    <button class="download-btn" id="downloadLyricBtn" disabled>
+                        <i class="fas fa-file-text"></i>
+                        <span>下载歌词</span>
+                    </button>
+                </div>
+            </div>
+            <audio id="audioPlayer" preload="metadata"></audio>
+        </div>
+        <div class="lyrics-section">
+            <h2 class="section-title">
+                <i class="fas fa-align-left"></i>
+                歌词
+            </h2>
+            <div class="lyrics-container" id="lyricsContainer">
+                <div class="lyric-line">暂无歌词</div>
+            </div>
+        </div>
+    </div>
+    <div class="mobile-page-indicators">
+        <div class="page-indicator active" onclick="switchMobilePage(0)"></div>
+        <div class="page-indicator" onclick="switchMobilePage(1)"></div>
+        <div class="page-indicator" onclick="switchMobilePage(2)"></div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="app-footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <a href="https://github.com/truelife0958/music888" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-github"></i> GitHub
+                </a>
+                <span class="footer-divider">|</span>
+                <a href="https://github.com/truelife0958/music888/issues" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-bug"></i> 反馈问题
+                </a>
+                <span class="footer-divider">|</span>
+                <a href="https://github.com/truelife0958/music888#readme" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-book"></i> 使用说明
+                </a>
+            </div>
+            <div class="footer-copyright">
+                <span>© 2026 云音乐</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script type="module" src="js/main.ts"></script>
+</body>
+
+</html>

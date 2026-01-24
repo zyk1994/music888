@@ -1,0 +1,164 @@
+/**
+ * 通用工具函数模块
+ * 包含 HTML 转义、防抖、节流等常用工具函数
+ */
+
+/**
+ * HTML 转义函数，防止 XSS 攻击
+ * @param text 需要转义的文本
+ * @returns 转义后的安全 HTML 字符串
+ */
+export function escapeHtml(text: string): string {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * 防抖函数
+ * @param fn 需要防抖的函数
+ * @param delay 延迟时间（毫秒）
+ * @returns 防抖包装后的函数
+ */
+export function debounce<T extends (...args: any[]) => any>(
+    fn: T,
+    delay: number
+): (...args: Parameters<T>) => void {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    
+    return function (this: any, ...args: Parameters<T>): void {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(() => {
+            fn.apply(this, args);
+            timeoutId = null;
+        }, delay);
+    };
+}
+
+/**
+ * 节流函数
+ * @param fn 需要节流的函数
+ * @param limit 时间限制（毫秒）
+ * @returns 节流包装后的函数
+ */
+export function throttle<T extends (...args: any[]) => any>(
+    fn: T,
+    limit: number
+): (...args: Parameters<T>) => void {
+    let inThrottle = false;
+    
+    return function (this: any, ...args: Parameters<T>): void {
+        if (!inThrottle) {
+            fn.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => {
+                inThrottle = false;
+            }, limit);
+        }
+    };
+}
+
+/**
+ * 格式化时间为 mm:ss 格式
+ * @param seconds 秒数
+ * @returns 格式化后的时间字符串
+ */
+export function formatTime(seconds: number): string {
+    if (!isFinite(seconds) || seconds < 0) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * 安全获取 DOM 元素
+ * @param selector CSS 选择器或元素 ID
+ * @param context 上下文元素，默认为 document
+ * @returns 元素或 null
+ */
+export function getElement<T extends HTMLElement = HTMLElement>(
+    selector: string,
+    context: Document | HTMLElement = document
+): T | null {
+    // NOTE: 如果 selector 是 ID，优先使用 getElementById
+    if (selector.startsWith('#') && context === document) {
+        return document.getElementById(selector.slice(1)) as T | null;
+    }
+    return context.querySelector<T>(selector);
+}
+
+/**
+ * 安全获取 DOM 元素（必须存在）
+ * @param selector CSS 选择器或元素 ID
+ * @param context 上下文元素
+ * @throws 如果元素不存在则抛出错误
+ */
+export function getRequiredElement<T extends HTMLElement = HTMLElement>(
+    selector: string,
+    context: Document | HTMLElement = document
+): T {
+    const element = getElement<T>(selector, context);
+    if (!element) {
+        throw new Error(`Required element not found: ${selector}`);
+    }
+    return element;
+}
+
+/**
+ * 安全的 localStorage 操作
+ */
+export const safeStorage = {
+    get<T>(key: string, defaultValue: T): T {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.error(`Failed to get ${key} from localStorage:`, error);
+            return defaultValue;
+        }
+    },
+    
+    set<T>(key: string, value: T): boolean {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+            return true;
+        } catch (error) {
+            console.error(`Failed to set ${key} in localStorage:`, error);
+            return false;
+        }
+    },
+    
+    remove(key: string): boolean {
+        try {
+            localStorage.removeItem(key);
+            return true;
+        } catch (error) {
+            console.error(`Failed to remove ${key} from localStorage:`, error);
+            return false;
+        }
+    }
+};
+
+/**
+ * 创建带取消功能的延迟 Promise
+ * @param ms 延迟毫秒数
+ */
+export function delay(ms: number): Promise<void> & { cancel: () => void } {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let rejectFn: () => void;
+    
+    const promise = new Promise<void>((resolve, reject) => {
+        rejectFn = reject;
+        timeoutId = setTimeout(resolve, ms);
+    }) as Promise<void> & { cancel: () => void };
+    
+    promise.cancel = () => {
+        clearTimeout(timeoutId);
+        rejectFn();
+    };
+    
+    return promise;
+}
