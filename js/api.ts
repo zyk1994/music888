@@ -123,9 +123,13 @@ export async function fetchWithRetry(url: string, options: RequestInit = {}, ret
  * 获取专辑封面 URL
  */
 export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<string> {
-    // 如果已有封面 URL，直接返回
+    // 如果已有封面 URL，直接返回（带参数调整大小）
     if (song.pic_url) {
-        return song.pic_url + `?param=${size}y${size}`;
+        // 网易云 CDN 图片直接拼接参数
+        if (song.pic_url.includes('music.126.net')) {
+            return song.pic_url + `?param=${size}y${size}`;
+        }
+        return song.pic_url;
     }
 
     if (!song.pic_id) {
@@ -134,12 +138,14 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
 
     try {
         if (currentAPI.type === 'nec') {
-            // NEC API: 直接使用网易云 CDN
+            // NOTE: NEC API 不直接返回封面 URL，需要从专辑详情获取
+            // 直接构造网易云 CDN 图片 URL（图片一般没有 CORS 问题）
             return `https://p1.music.126.net/${song.pic_id}/${song.pic_id}.jpg?param=${size}y${size}`;
         } else {
-            // Meting API
+            // Meting API: 请求封面 URL
             const response = await fetchWithRetry(`${currentAPI.url}?types=pic&source=${song.source}&id=${song.pic_id}&size=${size}`);
             const data = await response.json();
+            console.log('封面 API 响应:', data);
             return data?.url || '';
         }
     } catch (error) {

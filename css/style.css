@@ -303,11 +303,11 @@ body {
     display: none;
     flex: 1;
     overflow: auto;
-    flex-direction: column;
 }
 
 .tab-content.active {
     display: flex;
+    flex-direction: column;
 }
 
 .explore-radar-btn {
