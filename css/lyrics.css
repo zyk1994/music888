@@ -1,0 +1,44 @@
+/**
+ * Lyrics CSS
+ * Styles for the lyrics display section
+ */
+
+.lyrics-container {
+    flex: 1;
+    overflow-y: auto;
+    text-align: center;
+    padding: 0 10px;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    scrollbar-width: none;
+    /* Hide scrollbar for lyrics */
+}
+
+.lyrics-container::-webkit-scrollbar {
+    display: none;
+}
+
+.lyric-line {
+    padding: 12px 14px;
+    color: var(--color-text-muted);
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    cursor: pointer;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.lyric-line:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.lyric-line.active {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    text-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+    transform: scale(1.05);
+    margin: 20px 0;
+}

@@ -1,0 +1,48 @@
+/**
+ * CSS Variables
+ * Defines design tokens for colors, spacing, shadows, etc.
+ */
+:root {
+    /* 主色调 */
+    --color-primary: #ff6b6b;
+    --color-primary-dark: #ff5252;
+    --color-primary-light: #ff8a80;
+
+    /* 背景色 */
+    --color-bg-dark: #0c0c0c;
+    --color-bg-overlay: rgba(0, 0, 0, 0.85);
+
+    /* 玻璃态效果 */
+    --color-glass: rgba(255, 255, 255, 0.1);
+    --color-glass-hover: rgba(255, 255, 255, 0.2);
+    --color-glass-border: rgba(255, 255, 255, 0.1);
+    --color-glass-border-hover: rgba(255, 255, 255, 0.2);
+
+    /* 文本颜色 */
+    --color-text: #fff;
+    --color-text-secondary: rgba(255, 255, 255, 0.7);
+    --color-text-tertiary: rgba(255, 255, 255, 0.5);
+    --color-text-muted: rgba(255, 255, 255, 0.5);
+
+    /* 状态颜色 */
+    --color-success: #4CAF50;
+    --color-warning: #ff9800;
+    --color-error: #f44336;
+    --color-info: #2196F3;
+
+    /* 阴影 */
+    --shadow-primary: 0 4px 15px rgba(255, 107, 107, 0.3);
+    --shadow-primary-hover: 0 10px 30px rgba(255, 107, 107, 0.5);
+
+    /* 圆角 */
+    --radius-sm: 5px;
+    --radius-md: 10px;
+    --radius-lg: 15px;
+    --radius-xl: 20px;
+    --radius-full: 50%;
+
+    /* 过渡 */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}

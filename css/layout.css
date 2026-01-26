@@ -1,0 +1,155 @@
+/**
+ * Layout CSS
+ * Navbar, Footer, Main container structure
+ */
+
+/* === Navbar === */
+.navbar {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.logo i {
+    color: #ff6b6b;
+    font-size: 28px;
+}
+
+/* === Main Container === */
+.main-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 600px 450px 350px;
+    gap: 25px;
+    min-height: calc(var(--vh, 1vh) * 100 - 200px);
+    align-items: start;
+}
+
+/* === Sections General === */
+.content-section,
+.player-section,
+.lyrics-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 15px;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+.content-section {
+    min-width: 0;
+    height: calc(100vh - 180px);
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 5px;
+    margin-bottom: 15px;
+}
+
+.section-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.section-header h3 i {
+    color: var(--color-primary);
+}
+
+/* === Footer === */
+.app-footer {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px 0;
+    text-align: center;
+}
+
+.footer-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.footer-links a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--color-primary);
+}
+
+.footer-divider {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.footer-copyright {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+}
+
+.footer-copyright a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.footer-copyright a:hover {
+    text-decoration: underline;
+}
