@@ -2,8 +2,14 @@ const fetch = require('node-fetch');
 
 // NOTE: 白名单域名列表，只允许代理到这些可信域名
 const ALLOWED_HOSTS = [
+    // 音乐 API 源
     'music-api.gdstudio.xyz',
+    'api.injahow.cn',
+    'meting.qjqq.cn',
+    'nec8.de5.net',
+    // QQ 音乐
     'y.qq.com',
+    // 网易云音乐
     'music.163.com',
     'interface.music.163.com',
     // 网易云音乐 CDN (音频流)
@@ -84,13 +90,22 @@ module.exports = async (req, res) => {
             return res.status(response.status).json({ error: `Upstream API responded with status: ${response.status}` });
         }
 
-        // NOTE: 设置音频流响应头
-        const contentType = response.headers.get('content-type') || 'audio/mpeg';
+        // NOTE: 获取响应类型和长度
+        const contentType = response.headers.get('content-type') || 'application/octet-stream';
         const contentLength = response.headers.get('content-length');
 
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Accept-Ranges', 'bytes');
+        // NOTE: 设置 CORS 头，允许跨域访问
         res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        // NOTE: 根据响应类型设置不同的响应头
+        res.setHeader('Content-Type', contentType);
+
+        if (contentType.includes('audio') || contentType.includes('octet-stream')) {
+            // 音频流响应
+            res.setHeader('Accept-Ranges', 'bytes');
+        }
 
         if (contentLength) {
             res.setHeader('Content-Length', contentLength);

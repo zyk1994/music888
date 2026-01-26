@@ -60,8 +60,33 @@ const API_SOURCES: ApiSource[] = [
 
 let currentAPI = API_SOURCES[0];
 
+// NOTE: 代理端点路径，用于解决 CORS 问题
+const PROXY_ENDPOINT = '/api/proxy';
+
 /**
- * 测试 API 可用性
+ * 检测是否需要使用代理
+ * 开发环境使用 Vite 代理，生产环境使用 Vercel Serverless Function
+ */
+function shouldUseProxy(): boolean {
+    // 本地开发环境（localhost）可能已配置 Vite 代理，但为保险起见统一使用代理
+    return true;
+}
+
+/**
+ * 将外部 URL 转换为代理 URL
+ * @param url 原始外部 API URL
+ * @returns 代理后的 URL
+ */
+function toProxyUrl(url: string): string {
+    if (!shouldUseProxy()) {
+        return url;
+    }
+    // 编码 URL 作为查询参数传递给代理
+    return `${PROXY_ENDPOINT}?url=${encodeURIComponent(url)}`;
+}
+
+/**
+ * 测试 API 可用性（通过代理）
  */
 async function testAPI(api: ApiSource): Promise<boolean> {
     try {
@@ -75,7 +100,9 @@ async function testAPI(api: ApiSource): Promise<boolean> {
             testUrl = `${api.url}?types=search&source=netease&name=test&count=1`;
         }
 
-        const response = await fetch(testUrl, { signal: controller.signal });
+        // NOTE: 通过代理测试 API，避免 CORS 问题
+        const proxyUrl = toProxyUrl(testUrl);
+        const response = await fetch(proxyUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
         return response.ok;
     } catch (error) {
@@ -104,14 +131,26 @@ export async function findWorkingAPI(): Promise<{ success: boolean; name?: strin
 }
 
 /**
- * 带重试的 fetch 请求
+ * 带重试的 fetch 请求（自动通过代理）
+ * @param url 原始外部 API URL
+ * @param options fetch 选项
+ * @param retries 重试次数
+ * @param useProxy 是否使用代理（默认 true）
  */
-export async function fetchWithRetry(url: string, options: RequestInit = {}, retries: number = 2): Promise<Response> {
+export async function fetchWithRetry(
+    url: string,
+    options: RequestInit = {},
+    retries: number = 2,
+    useProxy: boolean = true
+): Promise<Response> {
+    // NOTE: 将外部 URL 转换为代理 URL 以解决 CORS 问题
+    const requestUrl = useProxy ? toProxyUrl(url) : url;
+
     for (let i = 0; i <= retries; i++) {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 20000);
-            const response = await fetch(url, {
+            const response = await fetch(requestUrl, {
                 ...options,
                 signal: controller.signal
             });
