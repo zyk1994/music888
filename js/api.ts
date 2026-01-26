@@ -257,20 +257,47 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
 
 /**
  * 获取歌曲播放 URL
+ * NOTE: 
+ * 1. 添加 randomCNIP=true 参数解决 Vercel 部署的 IP 限制问题
+ * 2. 如果常规接口返回空 URL（版权限制），尝试使用 /song/url/match 解锁灰色歌曲
  */
 export async function getSongUrl(song: Song, quality: string): Promise<{ url: string; br: string }> {
     if (currentAPI.type === 'nec') {
-        // NEC API: /song/url/v1
+        // NEC API: /song/url/v1 + randomCNIP 解决 IP 限制
         const level = quality === '999' ? 'hires' : quality === '740' ? 'lossless' : quality === '320' ? 'exhigh' : 'standard';
-        const response = await fetchWithRetry(`${currentAPI.url}/song/url/v1?id=${song.id}&level=${level}`);
-        const data = await response.json();
-        if (data.code === 200 && data.data?.[0]) {
-            const result = { url: data.data[0].url || '', br: String(data.data[0].br || quality) };
-            console.log('获取音频 URL:', result.url ? result.url.substring(0, 80) + '...' : '(空)');
-            return result;
+
+        try {
+            // 尝试常规接口 + randomCNIP
+            const response = await fetchWithRetry(
+                `${currentAPI.url}/song/url/v1?id=${song.id}&level=${level}&randomCNIP=true`
+            );
+            const data = await response.json();
+
+            if (data.code === 200 && data.data?.[0]?.url) {
+                const result = { url: data.data[0].url, br: String(data.data[0].br || quality) };
+                console.log('获取音频 URL:', result.url.substring(0, 80) + '...');
+                return result;
+            }
+
+            // 常规接口返回空 URL，尝试 UnblockNeteaseMusic 解锁灰色歌曲
+            console.log('常规接口无法获取 URL，尝试解锁灰色歌曲...');
+            const matchResponse = await fetchWithRetry(
+                `${currentAPI.url}/song/url/match?id=${song.id}&randomCNIP=true`
+            );
+            const matchData = await matchResponse.json();
+
+            if (matchData.code === 200 && matchData.data?.[0]?.url) {
+                const result = { url: matchData.data[0].url, br: String(matchData.data[0].br || quality) };
+                console.log('解锁灰色歌曲成功:', result.url.substring(0, 80) + '...');
+                return result;
+            }
+
+            console.warn('所有方式均无法获取 URL');
+            return { url: '', br: quality };
+        } catch (error) {
+            console.error('获取歌曲 URL 失败:', error);
+            return { url: '', br: quality };
         }
-        console.warn('NEC API 返回空 URL, data:', data);
-        return { url: '', br: quality };
     } else {
         // Meting API 新格式: /?type=url&id=xxx
         const response = await fetchWithRetry(`${currentAPI.url}/?type=url&id=${song.id}`);
@@ -309,20 +336,56 @@ export async function getLyrics(song: Song): Promise<{ lyric: string }> {
 export async function searchMusicAPI(keyword: string, _source?: string): Promise<Song[]> {
     // NOTE: Meting API 不支持搜索，始终使用 NEC API 进行搜索
     // NEC API 目前只支持网易云音乐，_source 参数暂时保留以保持 API 兼容性
-    const searchApiUrl = 'https://nec8.de5.net';
+    const searchApiUrl = currentAPI.type === 'nec' ? currentAPI.url : 'https://nec8.de5.net';
 
     try {
         const response = await fetchWithRetry(`${searchApiUrl}/search?keywords=${encodeURIComponent(keyword)}&limit=30`);
         const data = await response.json();
 
         if (data.code === 200 && data.result?.songs) {
-            return data.result.songs.map((song: any) => ({
+            const songs = data.result.songs;
+
+            // NOTE: 搜索结果中缺少 picUrl，需要调用 /song/detail 获取详情
+            try {
+                const ids = songs.map((s: any) => s.id).join(',');
+                if (ids) {
+                    const detailResponse = await fetchWithRetry(`${searchApiUrl}/song/detail?ids=${ids}`);
+                    const detailData = await detailResponse.json();
+
+                    if (detailData.code === 200 && detailData.songs) {
+                        // 创建 id -> detail 映射
+                        const detailMap = new Map(detailData.songs.map((s: any) => [s.id, s]));
+
+                        return songs.map((song: any) => {
+                            const detail: any = detailMap.get(song.id) || {};
+                            const album = detail.al || song.album || {};
+                            const artists = detail.ar || song.artists || [];
+
+                            return {
+                                id: String(song.id),
+                                name: song.name,
+                                artist: artists.map((a: any) => a.name) || [],
+                                album: album.name || '',
+                                pic_id: String(album.picId || album.id || ''),
+                                pic_url: album.picUrl || '',
+                                lyric_id: String(song.id),
+                                source: 'netease'
+                            };
+                        });
+                    }
+                }
+            } catch (detailError) {
+                console.warn('获取歌曲详情失败，使用基本信息:', detailError);
+            }
+
+            // 如果详情获取失败，回退到基本信息
+            return songs.map((song: any) => ({
                 id: String(song.id),
                 name: song.name,
                 artist: song.artists?.map((a: any) => a.name) || [],
                 album: song.album?.name || '',
-                pic_id: String(song.album?.id || ''),
-                pic_url: song.album?.picUrl || '',
+                pic_id: String(song.album?.picId || song.album?.id || ''),
+                pic_url: song.album?.picUrl || '', // 此时可能为空
                 lyric_id: String(song.id),
                 source: 'netease'
             }));
