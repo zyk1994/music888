@@ -271,9 +271,13 @@ export async function getSongUrl(song: Song, quality: string): Promise<{ url: st
     const metingUrl = 'https://api.injahow.cn/meting';
     try {
         console.log('尝试使用 Meting API 获取音频 URL...');
-        const response = await fetchWithRetry(`${metingUrl}/?type=url&id=${song.id}`);
-        // Meting API 可能会返回 JSON 或直接重定向？通常是 JSON
-        const result = await response.json();
+        // NOTE: 使用 type=song 而不是 type=url，因为 type=url 会直接返回音频流（导致 JSON 解析失败）
+        // type=song 返回包含 url 的 JSON 数组
+        const response = await fetchWithRetry(`${metingUrl}/?type=song&id=${song.id}`);
+        const data = await response.json();
+
+        // Meting API type=song 返回的是数组
+        const result = Array.isArray(data) ? data[0] : data;
 
         if (result && result.url) {
             console.log('Meting API 获取成功:', result.url.substring(0, 50) + '...');
