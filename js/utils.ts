@@ -21,13 +21,14 @@ export function escapeHtml(text: string): string {
  * @param delay 延迟时间（毫秒）
  * @returns 防抖包装后的函数
  */
-export function debounce<T extends (...args: any[]) => any>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => unknown>(
     fn: T,
     delay: number
 ): (...args: Parameters<T>) => void {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     
-    return function (this: any, ...args: Parameters<T>): void {
+    return function (this: unknown, ...args: Parameters<T>): void {
         if (timeoutId) {
             clearTimeout(timeoutId);
         }
@@ -44,13 +45,14 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param limit 时间限制（毫秒）
  * @returns 节流包装后的函数
  */
-export function throttle<T extends (...args: any[]) => any>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function throttle<T extends (...args: any[]) => unknown>(
     fn: T,
     limit: number
 ): (...args: Parameters<T>) => void {
     let inThrottle = false;
     
-    return function (this: any, ...args: Parameters<T>): void {
+    return function (this: unknown, ...args: Parameters<T>): void {
         if (!inThrottle) {
             fn.apply(this, args);
             inThrottle = true;

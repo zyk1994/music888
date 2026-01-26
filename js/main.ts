@@ -6,6 +6,7 @@ import * as api from './api';
 import * as ui from './ui';
 import * as player from './player';
 import { debounce, getElement } from './utils';
+import { MusicError } from './types';
 
 // --- 移动端页面切换功能（必须在模块顶层定义，供 HTML onclick 使用）---
 let currentMobilePage = 0;
@@ -37,7 +38,8 @@ function switchMobilePage(pageIndex: number): void {
 }
 
 // NOTE: 导出给其他模块使用（如 ui.ts 的点击播放跳转）
-(window as any).switchMobilePage = switchMobilePage;
+// 使用类型安全的 Window 扩展
+window.switchMobilePage = switchMobilePage;
 
 // --- 全局错误处理 ---
 window.addEventListener('error', (event) => {
@@ -377,9 +379,12 @@ async function handleParsePlaylist(): Promise<void> {
     } catch (error) {
         console.error('Parse playlist failed:', error);
 
-        // 显示详细的错误信息
+        // 使用 MusicError 提供更友好的错误信息
         let errorMessage = '解析歌单失败';
-        if (error instanceof Error) {
+        if (error instanceof MusicError) {
+            errorMessage = error.userMessage;
+            console.error(`[${error.type}] ${error.message}`);
+        } else if (error instanceof Error) {
             errorMessage = error.message;
         }
         ui.showError(errorMessage, 'parseResults');

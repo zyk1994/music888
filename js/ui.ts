@@ -1,24 +1,9 @@
-import { Song, getSongUrl } from './api';
+import { getSongUrl } from './api';
+import { Song, LyricLine, DOMCache, ScrollState, NotificationType } from './types';
 import * as player from './player';
-import { LyricLine } from './player';
 import { escapeHtml, formatTime, getElement } from './utils';
 
 // --- DOM Element Cache ---
-interface DOMCache {
-    searchResults: HTMLElement | null;
-    parseResults: HTMLElement | null;
-    savedResults: HTMLElement | null;
-    currentCover: HTMLImageElement | null;
-    currentTitle: HTMLElement | null;
-    currentArtist: HTMLElement | null;
-    playBtn: HTMLElement | null;
-    progressFill: HTMLElement | null;
-    currentTime: HTMLElement | null;
-    totalTime: HTMLElement | null;
-    lyricsContainer: HTMLElement | null;
-    downloadSongBtn: HTMLButtonElement | null;
-    downloadLyricBtn: HTMLButtonElement | null;
-}
 
 let DOM: DOMCache;
 
@@ -50,7 +35,7 @@ export function init(): void {
  * @param message 通知消息内容
  * @param type 通知类型：info/success/warning/error
  */
-export function showNotification(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
+export function showNotification(message: string, type: NotificationType = 'info'): void {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     // NOTE: 使用 textContent 而非 innerHTML，防止 XSS
@@ -70,13 +55,6 @@ export function showNotification(message: string, type: 'info' | 'success' | 'wa
 }
 
 // 存储当前的滚动加载状态
-interface ScrollState {
-    songs: Song[];
-    containerId: string;
-    playlistForPlayback: Song[];
-    renderedCount: number;
-    batchSize: number;
-}
 let currentScrollState: ScrollState | null = null;
 
 /**
@@ -117,8 +95,8 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
         songItem.onclick = () => {
             player.playSong(index, playlistForPlayback, currentScrollState ? currentScrollState.containerId : 'searchResults');
             // 移动端跳转到播放器栏（第二栏）
-            if (window.innerWidth <= 768 && (window as any).switchMobilePage) {
-                (window as any).switchMobilePage(1);
+            if (window.innerWidth <= 768 && window.switchMobilePage) {
+                window.switchMobilePage(1);
             }
         };
 

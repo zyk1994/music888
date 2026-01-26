@@ -3,7 +3,7 @@
  * 负责音乐播放控制、歌单管理和收藏功能
  */
 import * as api from './api';
-import { Song } from './api';
+import { Song, PlaylistData, LyricLine, PlayMode, MusicError } from './types';
 import * as ui from './ui';
 
 // --- Player State ---
@@ -11,25 +11,14 @@ let currentPlaylist: Song[] = [];
 let currentIndex: number = -1;
 let isPlaying: boolean = false;
 const audioPlayer: HTMLAudioElement = new Audio();
-let playMode: 'loop' | 'random' | 'single' = 'loop';
+let playMode: PlayMode = 'loop';
 let playHistory: number[] = [];
 let historyPosition: number = -1;
 let lastActiveContainer: string = 'searchResults';
-let currentLyrics: { time: number; text: string }[] = []; // NOTE: 存储当前歌词用于实时更新
+let currentLyrics: LyricLine[] = []; // NOTE: 存储当前歌词用于实时更新
 let currentPlayRequestId = 0; // 防止播放请求竞态条件
 
 // --- Playlist & Favorites State ---
-
-/**
- * 歌单数据结构
- */
-interface PlaylistData {
-    name: string;
-    songs: Song[];
-    id: string;
-    createTime: string;
-    isFavorites?: boolean;
-}
 
 let playlistStorage = new Map<string, PlaylistData>();
 let playlistCounter: number = 0;
@@ -174,8 +163,16 @@ export async function playSong(index: number, playlist: Song[], containerId: str
     } catch (error) {
         if (requestId !== currentPlayRequestId) return;
 
-        console.error('Error playing song:', error);
-        ui.showNotification('播放失败，将尝试下一首', 'error');
+        // 使用 MusicError 提供更友好的错误信息
+        let userMessage = '播放失败，将尝试下一首';
+        if (error instanceof MusicError) {
+            userMessage = error.userMessage;
+            console.error(`[${error.type}] ${error.message}`);
+        } else {
+            console.error('Error playing song:', error);
+        }
+        
+        ui.showNotification(userMessage, 'error');
         setTimeout(() => { if (requestId === currentPlayRequestId) nextSong(); }, 1500);
     }
 }
@@ -453,11 +450,6 @@ audioPlayer.addEventListener('loadedmetadata', () => {
         ui.updateProgress(audioPlayer.currentTime, audioPlayer.duration);
     }
 });
-
-export interface LyricLine {
-    time: number;
-    text: string;
-}
 
 /**
  * 解析 LRC 格式歌词

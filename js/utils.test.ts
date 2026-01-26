@@ -1,7 +1,6 @@
 /**
  * 云音乐播放器 - 工具函数单元测试
  */
-import { describe, it, expect } from 'vitest';
 import { escapeHtml, formatTime, debounce, throttle } from './utils';
 
 describe('escapeHtml', () => {
