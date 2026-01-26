@@ -27,35 +27,36 @@ export interface Song {
 
 /**
  * API 源配置
+ * NOTE: NEC API 支持搜索，Meting API 只支持歌单/歌曲详情/歌词等
  */
 interface ApiSource {
     name: string;
     url: string;
-    type: 'nec' | 'meting'; // nec = NeteaseCloudMusicApi Enhanced, meting = Meting API
+    type: 'nec' | 'meting';
+    /** 是否支持搜索功能 */
+    supportsSearch: boolean;
 }
 
-// NOTE: API 源配置 - 支持多个备用源，按优先级排列
-// IMPORTANT: NEC API 目前最稳定，其他 Meting API 可能返回 HTML 页面
+// NOTE: API 源配置 - 按功能和稳定性排列
+// IMPORTANT: 只有 NEC API 支持搜索功能，Meting API 已移除搜索支持
 const API_SOURCES: ApiSource[] = [
     {
         name: 'NEC API',
         url: 'https://nec8.de5.net',
-        type: 'nec'
+        type: 'nec',
+        supportsSearch: true
     },
     {
-        name: '备用 Meting 1',
+        name: 'Meting API 1',
         url: 'https://api.injahow.cn/meting',
-        type: 'meting'
+        type: 'meting',
+        supportsSearch: false
     },
     {
-        name: '备用 Meting 2',
+        name: 'Meting API 2',
         url: 'https://meting.qjqq.cn',
-        type: 'meting'
-    },
-    {
-        name: '备用 Meting 3',
-        url: 'https://music-api.gdstudio.xyz/api.php',
-        type: 'meting'
+        type: 'meting',
+        supportsSearch: false
     }
 ];
 
@@ -88,7 +89,9 @@ function toProxyUrl(url: string): string {
 
 /**
  * 测试 API 可用性（通过代理）
- * NOTE: 不仅测试连接，还验证返回的是有效 JSON 数据
+ * NOTE: 根据 API 类型使用不同的测试端点
+ * - NEC API: 使用搜索接口测试
+ * - Meting API: 使用歌单接口测试（新版不支持搜索）
  */
 async function testAPI(api: ApiSource): Promise<boolean> {
     try {
@@ -97,9 +100,12 @@ async function testAPI(api: ApiSource): Promise<boolean> {
 
         let testUrl: string;
         if (api.type === 'nec') {
+            // NEC API 支持搜索
             testUrl = `${api.url}/search?keywords=test&limit=1`;
         } else {
-            testUrl = `${api.url}?types=search&source=netease&name=test&count=1`;
+            // Meting API 新版格式：/?type=playlist&id=xxx
+            // 使用一个公开的测试歌单 ID
+            testUrl = `${api.url}/?type=playlist&id=60198`;
         }
 
         // NOTE: 通过代理测试 API，避免 CORS 问题
@@ -127,8 +133,16 @@ async function testAPI(api: ApiSource): Promise<boolean> {
             if (api.type === 'nec') {
                 return data.code === 200;
             }
-            // 对于 Meting API，检查是否是数组或有效对象
-            return Array.isArray(data) || (typeof data === 'object' && data !== null);
+            // 对于 Meting API，检查是否是数组（歌单歌曲列表）
+            if (Array.isArray(data) && data.length > 0) {
+                return true;
+            }
+            // 检查是否有错误
+            if (data.error) {
+                console.log(`  Meting API 返回错误: ${data.error}`);
+                return false;
+            }
+            return typeof data === 'object' && data !== null;
         } catch {
             console.log(`  API 响应不是有效 JSON: ${text.substring(0, 100)}`);
             return false;
@@ -229,11 +243,11 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
             // 直接构造网易云 CDN 图片 URL（图片一般没有 CORS 问题）
             return `https://p1.music.126.net/${song.pic_id}/${song.pic_id}.jpg?param=${size}y${size}`;
         } else {
-            // Meting API: 请求封面 URL
-            const response = await fetchWithRetry(`${currentAPI.url}?types=pic&source=${song.source}&id=${song.pic_id}&size=${size}`);
+            // Meting API 新格式: /?type=pic&id=xxx
+            const response = await fetchWithRetry(`${currentAPI.url}/?type=pic&id=${song.pic_id}`);
             const data = await response.json();
             console.log('封面 API 响应:', data);
-            return data?.url || '';
+            return data?.url || data?.pic || '';
         }
     } catch (error) {
         console.error('获取专辑图失败:', error);
@@ -258,11 +272,11 @@ export async function getSongUrl(song: Song, quality: string): Promise<{ url: st
         console.warn('NEC API 返回空 URL, data:', data);
         return { url: '', br: quality };
     } else {
-        // Meting API
-        const response = await fetchWithRetry(`${currentAPI.url}?types=url&source=${song.source}&id=${song.id}&br=${quality}`);
+        // Meting API 新格式: /?type=url&id=xxx
+        const response = await fetchWithRetry(`${currentAPI.url}/?type=url&id=${song.id}`);
         const result = await response.json();
         console.log('获取音频 URL:', result?.url ? result.url.substring(0, 80) + '...' : '(空)', 'response:', result);
-        return result;
+        return { url: result?.url || '', br: quality };
     }
 }
 
@@ -279,19 +293,26 @@ export async function getLyrics(song: Song): Promise<{ lyric: string }> {
         }
         return { lyric: '' };
     } else {
-        // Meting API
-        const response = await fetchWithRetry(`${currentAPI.url}?types=lyric&source=${song.source}&id=${song.lyric_id || song.id}`);
-        return await response.json();
+        // Meting API 新格式: /?type=lrc&id=xxx
+        const response = await fetchWithRetry(`${currentAPI.url}/?type=lrc&id=${song.lyric_id || song.id}`);
+        const result = await response.json();
+        return { lyric: result?.lyric || '' };
     }
 }
 
 /**
  * 搜索音乐
+ * NOTE: 只有 NEC API 支持搜索，Meting API 已移除搜索功能
+ * @param keyword 搜索关键词
+ * @param _source 音乐源（保留参数，目前只支持网易云）
  */
-export async function searchMusicAPI(keyword: string, source: string): Promise<Song[]> {
-    if (currentAPI.type === 'nec') {
-        // NOTE: NEC API 目前只支持网易云音乐
-        const response = await fetchWithRetry(`${currentAPI.url}/search?keywords=${encodeURIComponent(keyword)}&limit=30`);
+export async function searchMusicAPI(keyword: string, _source?: string): Promise<Song[]> {
+    // NOTE: Meting API 不支持搜索，始终使用 NEC API 进行搜索
+    // NEC API 目前只支持网易云音乐，_source 参数暂时保留以保持 API 兼容性
+    const searchApiUrl = 'https://nec8.de5.net';
+
+    try {
+        const response = await fetchWithRetry(`${searchApiUrl}/search?keywords=${encodeURIComponent(keyword)}&limit=30`);
         const data = await response.json();
 
         if (data.code === 200 && data.result?.songs) {
@@ -307,11 +328,9 @@ export async function searchMusicAPI(keyword: string, source: string): Promise<S
             }));
         }
         return [];
-    } else {
-        // Meting API
-        const response = await fetchWithRetry(`${currentAPI.url}?types=search&source=${source}&name=${encodeURIComponent(keyword)}&count=30`);
-        const data = await response.json();
-        return data.map((song: any) => ({ ...song, source: source }));
+    } catch (error) {
+        console.error('搜索失败:', error);
+        return [];
     }
 }
 
@@ -401,8 +420,8 @@ export async function parsePlaylistAPI(playlistUrlOrId: string): Promise<{ songs
         }
         throw new Error('歌单解析失败');
     } else {
-        // Meting API
-        const response = await fetchWithRetry(`${currentAPI.url}?types=playlist&source=netease&id=${playlistId}`);
+        // Meting API 新格式: /?type=playlist&id=xxx
+        const response = await fetchWithRetry(`${currentAPI.url}/?type=playlist&id=${playlistId}`);
         const playlistData = await response.json();
 
         if (!playlistData) throw new Error('API返回空数据');
