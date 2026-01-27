@@ -326,3 +326,223 @@
         font-size: 11px;
     }
 }
+
+/* === Mobile-specific Enhancements === */
+@media (max-width: 768px) {
+    /* 通知在移动端居中显示 */
+    .notification {
+        top: auto;
+        bottom: 80px;
+        right: 50%;
+        transform: translateX(50%) translateY(100%);
+        max-width: calc(100vw - 40px);
+        text-align: center;
+    }
+
+    .notification-show {
+        transform: translateX(50%) translateY(0);
+    }
+
+    .notification-hide {
+        transform: translateX(50%) translateY(100%);
+    }
+
+    /* 歌曲操作按钮在移动端始终可见 */
+    .song-actions {
+        opacity: 1;
+    }
+
+    /* 播放器控件优化 */
+    .player-controls {
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .control-btn.small {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+
+    .control-btn.play-btn {
+        width: 64px;
+        height: 64px;
+        font-size: 26px;
+    }
+
+    /* 进度条更容易点击 */
+    .progress-bar {
+        height: 8px;
+        margin: 0 5px;
+    }
+
+    /* 音量控制优化 */
+    .volume-slider {
+        height: 6px;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* 品质选择和下载按钮 */
+    .quality-download-container {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .quality-select,
+    .download-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    /* 页面指示器增强 */
+    .page-indicator {
+        width: 10px;
+        height: 10px;
+        cursor: pointer;
+    }
+
+    .page-indicator:active {
+        transform: scale(0.9);
+    }
+
+    /* 歌曲索引在移动端更小 */
+    .song-index {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+        margin-right: 12px;
+    }
+
+    /* 歌曲信息区域优化 */
+    .song-info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .song-name,
+    .song-artist {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 标签页滚动优化 */
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* 搜索结果列表优化 */
+    .search-results {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 歌词容器优化 */
+    .lyrics-container {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 空状态优化 */
+    .empty-state {
+        padding: 40px 20px;
+    }
+
+    .empty-state i {
+        font-size: 40px;
+    }
+
+    /* 加载状态优化 */
+    .loading {
+        padding: 40px 20px;
+    }
+
+    .loading i {
+        font-size: 32px;
+    }
+}
+
+/* === Touch Device Optimizations === */
+@media (hover: none) and (pointer: coarse) {
+    /* 触摸设备上的按钮更大 */
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+
+    /* 触摸设备上禁用悬停效果 */
+    .song-item:hover {
+        transform: none;
+    }
+
+    .song-item:hover::before {
+        left: -100%;
+    }
+
+    /* 触摸设备上的点击反馈 */
+    .song-item:active {
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(0.98);
+    }
+
+    .control-btn:active {
+        transform: scale(0.95);
+    }
+
+    .tab-btn:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* === Safe Area Support (iPhone X+) === */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .mobile-page-indicators {
+        bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .content-section,
+    .player-section,
+    .lyrics-section {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+}
+
+/* === Landscape Mode on Mobile === */
+@media (max-width: 768px) and (orientation: landscape) {
+    .content-section,
+    .player-section,
+    .lyrics-section {
+        height: calc(100vh - 80px);
+    }
+
+    .current-cover {
+        width: 100px;
+        height: 100px;
+    }
+
+    .current-song {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        text-align: left;
+        margin-bottom: 15px;
+    }
+
+    .current-cover-container {
+        margin-bottom: 0;
+    }
+
+    .player-controls {
+        margin-bottom: 15px;
+    }
+}
