@@ -17,6 +17,7 @@ let historyPosition: number = -1;
 let lastActiveContainer: string = 'searchResults';
 let currentLyrics: LyricLine[] = []; // NOTE: 存储当前歌词用于实时更新
 let currentPlayRequestId = 0; // 防止播放请求竞态条件
+let playHistorySongs: Song[] = []; // NOTE: 存储播放历史歌曲对象，避免索引失效
 
 // --- Playlist & Favorites State ---
 
@@ -41,16 +42,17 @@ export async function playSong(index: number, playlist: Song[], containerId: str
     const song = currentPlaylist[index];
 
     if (song.source === 'kuwo') {
-        ui.showNotification('酷我音乐源暂不支持，跳到下一首', 'warning');
-        setTimeout(() => { if (requestId === currentPlayRequestId) nextSong(); }, 500);
-        return;
+        // NOTE: 酷我音乐源在 GDStudio API 中是稳定的，不再跳过
+        console.log('使用酷我音乐源播放:', song.name);
     }
 
     if (!fromHistory) {
         if (historyPosition < playHistory.length - 1) {
             playHistory = playHistory.slice(0, historyPosition + 1);
+            playHistorySongs = playHistorySongs.slice(0, historyPosition + 1);
         }
         playHistory.push(index);
+        playHistorySongs.push(song);
         historyPosition = playHistory.length - 1;
     }
 
@@ -124,7 +126,11 @@ export async function playSong(index: number, playlist: Song[], containerId: str
             const needsProxy = audioUrl.includes('music.126.net') ||
                 audioUrl.includes('stream.qqmusic.qq.com') ||
                 audioUrl.includes('kugou.com') ||
-                audioUrl.includes('migu.cn');
+                audioUrl.includes('migu.cn') ||
+                audioUrl.includes('kuwo.cn') ||
+                audioUrl.includes('joox.com') ||
+                audioUrl.includes('xmcdn.com') ||
+                audioUrl.includes('ximalaya.com');
 
             if (needsProxy) {
                 // 使用 Vercel 代理转发音频请求
@@ -189,14 +195,28 @@ export function nextSong(): void {
 }
 
 export function previousSong(): void {
-    if (playHistory.length > 1 && historyPosition > 0) {
+    if (playHistorySongs.length > 1 && historyPosition > 0) {
         historyPosition--;
-        playSong(playHistory[historyPosition], currentPlaylist, lastActiveContainer, true);
-    } else {
-        if (currentPlaylist.length === 0) return;
-        const newIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
-        playSong(newIndex, currentPlaylist, lastActiveContainer);
+        // NOTE: 使用存储的歌曲对象，避免索引失效问题
+        const historySong = playHistorySongs[historyPosition];
+        if (historySong) {
+            // 在当前播放列表中查找该歌曲
+            const indexInPlaylist = currentPlaylist.findIndex(
+                s => s.id === historySong.id && s.source === historySong.source
+            );
+            if (indexInPlaylist >= 0) {
+                playSong(indexInPlaylist, currentPlaylist, lastActiveContainer, true);
+            } else {
+                // 如果歌曲不在当前列表中，创建临时列表播放
+                playSong(0, [historySong], lastActiveContainer, true);
+            }
+            return;
+        }
     }
+    // 回退到常规上一首逻辑
+    if (currentPlaylist.length === 0) return;
+    const newIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    playSong(newIndex, currentPlaylist, lastActiveContainer);
 }
 
 export function togglePlay(): void {
@@ -239,7 +259,12 @@ export function downloadSongByData(song: Song | null): void {
     api.getSongUrl(song, '999').then(urlData => {
         if (urlData && urlData.url) {
             fetch(urlData.url)
-                .then(res => res.blob())
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`下载失败: ${res.status}`);
+                    }
+                    return res.blob();
+                })
                 .then(blob => {
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
@@ -249,8 +274,17 @@ export function downloadSongByData(song: Song | null): void {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(a.href);
                     ui.showNotification(`下载完成: ${song.name}`, 'success');
+                })
+                .catch(err => {
+                    console.error('下载失败:', err);
+                    ui.showNotification(`下载失败: ${err.message}`, 'error');
                 });
+        } else {
+            ui.showNotification('无法获取下载链接', 'error');
         }
+    }).catch(err => {
+        console.error('获取下载链接失败:', err);
+        ui.showNotification('获取下载链接失败', 'error');
     });
 }
 
@@ -268,7 +302,12 @@ export function downloadLyricByData(song: Song | null): void {
             document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
             ui.showNotification(`歌词下载完成: ${song.name}`, 'success');
+        } else {
+            ui.showNotification('暂无歌词可下载', 'warning');
         }
+    }).catch(err => {
+        console.error('获取歌词失败:', err);
+        ui.showNotification('获取歌词失败', 'error');
     });
 }
 
@@ -366,9 +405,10 @@ export function getFavorites(): Song[] {
 
 /**
  * 获取播放历史
+ * NOTE: 返回实际存储的歌曲对象，避免索引失效问题
  */
 export function getPlayHistory(): Song[] {
-    return [...playHistory].reverse().map(index => currentPlaylist[index]).filter(Boolean);
+    return [...playHistorySongs].reverse();
 }
 
 /**
@@ -376,6 +416,7 @@ export function getPlayHistory(): Song[] {
  */
 export function clearPlayHistory(): void {
     playHistory = [];
+    playHistorySongs = [];
     historyPosition = -1;
 }
 

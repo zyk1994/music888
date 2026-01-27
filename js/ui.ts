@@ -132,7 +132,7 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
                     btn.style.opacity = '0.5';
                     showNotification('正在获取下载链接...', 'info');
 
-                    const result = await getSongUrl(song, '320000'); // 默认尝试下载高品质
+                    const result = await getSongUrl(song, '320'); // 默认尝试下载高品质
                     if (result && result.url) {
                         // 创建临时链接下载
                         // NOTE: 由于跨域问题，可能无法直接触发下载，而是打开新窗口

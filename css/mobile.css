@@ -82,6 +82,23 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
+    .search-wrapper {
+        flex-wrap: wrap;
+        border-radius: 20px;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .source-select {
+        flex: 0 0 auto;
+        max-width: 100px;
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
     .main-container {
         display: flex;
         flex-direction: column;
@@ -191,23 +208,7 @@
     }
 
     /* Search improvements */
-    .search-wrapper {
-        border-radius: 25px;
-    }
-
-    .search-input {
-        padding: 12px 18px;
-        font-size: 15px;
-    }
-
-    .search-btn {
-        padding: 12px 18px;
-    }
-
-    .source-select {
-        max-width: 90px;
-        font-size: 12px;
-    }
+    /* NOTE: 搜索框样式已在上方统一处理，这里移除重复样式 */
 
     /* Footer adjustments */
     .app-footer {
@@ -270,6 +271,7 @@
     .search-input {
         padding: 8px 12px;
         font-size: 13px;
+        min-width: 80px;
     }
 
     .search-btn {
@@ -278,7 +280,8 @@
 
     .source-select {
         padding: 8px 10px;
-        font-size: 13px;
+        font-size: 11px;
+        max-width: 70px;
     }
 
     .song-item {

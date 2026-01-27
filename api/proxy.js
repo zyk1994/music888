@@ -29,7 +29,18 @@ const ALLOWED_HOSTS = [
     'trackercdn.kugou.com',
     'webfs.tx.kugou.com',
     // 咪咕音乐 CDN
-    'freetyst.nf.migu.cn'
+    'freetyst.nf.migu.cn',
+    // 酷我音乐 CDN
+    'sycdn.kuwo.cn',
+    'other.web.nf01.sycdn.kuwo.cn',
+    'other.web.ra01.sycdn.kuwo.cn',
+    // JOOX CDN
+    'joox.com',
+    'api.joox.com',
+    // 喜马拉雅 CDN
+    'ximalaya.com',
+    'fdfs.xmcdn.com',
+    'aod.cos.tx.xmcdn.com'
 ];
 
 /**
@@ -76,6 +87,12 @@ module.exports = async (req, res) => {
             referer = 'https://www.kugou.com/';
         } else if (parsedUrl.hostname.includes('migu.cn')) {
             referer = 'https://music.migu.cn/';
+        } else if (parsedUrl.hostname.includes('kuwo.cn')) {
+            referer = 'https://www.kuwo.cn/';
+        } else if (parsedUrl.hostname.includes('joox.com')) {
+            referer = 'https://www.joox.com/';
+        } else if (parsedUrl.hostname.includes('ximalaya.com') || parsedUrl.hostname.includes('xmcdn.com')) {
+            referer = 'https://www.ximalaya.com/';
         }
 
         const response = await fetch(decodedUrl, {

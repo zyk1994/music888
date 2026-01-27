@@ -308,12 +308,12 @@ function adjustVolume(delta: number): void {
  */
 async function handleSearch(): Promise<void> {
     const searchInput = getElement<HTMLInputElement>('#searchInput');
-    // const sourceSelect = getElement<HTMLSelectElement>('#sourceSelect'); // 已移除
+    const sourceSelect = getElement<HTMLSelectElement>('#sourceSelect');
 
     if (!searchInput) return;
 
     const keyword = searchInput.value;
-    const source = 'netease'; // 默认使用网易云
+    const source = sourceSelect?.value || 'netease'; // 从选择器获取音乐源
 
     if (!keyword.trim()) {
         ui.showNotification('请输入搜索关键词', 'warning');
@@ -328,6 +328,25 @@ async function handleSearch(): Promise<void> {
 
         if (songs.length === 0) {
             ui.showNotification('未找到相关歌曲', 'info');
+        } else {
+            // 显示当前使用的音乐源
+            const sourceNames: { [key: string]: string } = {
+                netease: '网易云音乐',
+                tencent: 'QQ音乐',
+                kuwo: '酷我音乐',
+                kugou: '酷狗音乐',
+                migu: '咪咕音乐',
+                joox: 'JOOX',
+                ximalaya: '喜马拉雅',
+                spotify: 'Spotify',
+                apple: 'Apple Music',
+                ytmusic: 'YouTube Music',
+                tidal: 'TIDAL',
+                qobuz: 'Qobuz',
+                deezer: 'Deezer'
+            };
+            const sourceName = sourceNames[source] || source;
+            ui.showNotification(`从 ${sourceName} 找到 ${songs.length} 首歌曲`, 'success');
         }
     } catch (error) {
         console.error('Search failed:', error);

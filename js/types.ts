@@ -81,7 +81,7 @@ export type PlayMode = 'loop' | 'random' | 'single';
 /**
  * API 源类型
  */
-export type ApiType = 'nec' | 'meting';
+export type ApiType = 'nec' | 'meting' | 'gdstudio';
 
 /**
  * API 源配置
@@ -284,6 +284,68 @@ export interface MetingErrorResponse {
     error?: string;
     /** 错误消息 */
     msg?: string;
+}
+
+// ============================================
+// GDStudio API 响应类型
+// ============================================
+
+/**
+ * GDStudio API 搜索响应
+ */
+export interface GDStudioSearchResponse {
+    /** 搜索结果列表 */
+    [key: string]: GDStudioSong;
+}
+
+/**
+ * GDStudio API 歌曲信息
+ */
+export interface GDStudioSong {
+    /** 歌曲 ID */
+    id: string;
+    /** 歌曲名称 */
+    name: string;
+    /** 歌手列表 */
+    artist: string | string[];
+    /** 专辑名称 */
+    album?: string;
+    /** 封面图片 ID */
+    pic_id?: string;
+    /** 歌词 ID */
+    lyric_id?: string;
+    /** 音乐源 */
+    source: string;
+}
+
+/**
+ * GDStudio API 歌曲响应
+ */
+export interface GDStudioUrlResponse {
+    /** 播放 URL */
+    url: string;
+    /** 实际音质 */
+    br: string;
+    /** 文件大小 (KB) */
+    size?: number;
+}
+
+/**
+ * GDStudio API 歌词响应
+ */
+export interface GDStudioLyricResponse {
+    /** LRC 格式歌词 */
+    lyric?: string;
+    /** 翻译歌词 */
+    tlyric?: string;
+}
+
+/**
+ * GDStudio API 封面响应
+ */
+export interface GDStudioPicResponse {
+    /** 封面 URL */
+    url: string;
 }
 
 // ============================================
