@@ -49,3 +49,69 @@
         transform: rotate(360deg);
     }
 }
+
+/* 脉冲动画（用于加载状态） */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* 淡入动画 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 滑入动画 */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 弹跳动画（用于播放按钮） */
+@keyframes bounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* 加载旋转动画 */
+.loading i {
+    animation: rotate 1s linear infinite;
+}
+
+/* 歌曲项淡入效果 */
+.song-item {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* 延迟动画（用于列表项） */
+.song-item:nth-child(1) { animation-delay: 0.05s; }
+.song-item:nth-child(2) { animation-delay: 0.1s; }
+.song-item:nth-child(3) { animation-delay: 0.15s; }
+.song-item:nth-child(4) { animation-delay: 0.2s; }
+.song-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* 播放按钮点击效果 */
+.control-btn.play-btn:active {
+    animation: bounce 0.2s ease;
+}

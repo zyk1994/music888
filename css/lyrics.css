@@ -11,7 +11,9 @@
     mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
     scrollbar-width: none;
-    /* Hide scrollbar for lyrics */
+    scroll-behavior: smooth;
+    /* 性能优化：启用 GPU 加速 */
+    will-change: scroll-position;
 }
 
 .lyrics-container::-webkit-scrollbar {
@@ -22,11 +24,18 @@
     padding: 12px 14px;
     color: var(--color-text-muted);
     font-size: 16px;
-    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition:
+        color 0.3s ease,
+        font-size 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        margin 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        text-shadow 0.3s ease;
     cursor: pointer;
     border-radius: 12px;
     margin-bottom: 8px;
     line-height: 1.6;
+    /* 性能优化：减少重绘 */
+    contain: content;
 }
 
 .lyric-line:hover {
@@ -41,4 +50,21 @@
     text-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
     transform: scale(1.05);
     margin: 20px 0;
+    /* 高亮行的背景效果 */
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 107, 107, 0.1) 50%,
+        transparent 100%
+    );
+}
+
+/* 即将播放的歌词行（预高亮） */
+.lyric-line.active + .lyric-line {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* 刚播放过的歌词行 */
+.lyric-line:has(+ .active) {
+    color: rgba(255, 255, 255, 0.6);
 }

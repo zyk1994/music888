@@ -54,7 +54,9 @@ self.addEventListener('fetch', (event) => {
 
     // API 请求不缓存
     if (url.hostname.includes('music-api') ||
-        url.hostname.includes('ncm8.de5.net') ||
+        url.hostname.includes('nec8.de5.net') ||
+        url.hostname.includes('tktok.de5.net') ||
+        url.hostname.includes('gdstudio.xyz') ||
         url.pathname.includes('/api')) {
         return;
     }

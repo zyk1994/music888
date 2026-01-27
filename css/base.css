@@ -4,10 +4,21 @@
  */
 
 /* === 基础样式重置 === */
-* {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* 性能优化：减少重绘 */
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* 移动端视口高度修复 */
+    height: -webkit-fill-available;
 }
 
 body {
@@ -15,13 +26,64 @@ body {
     background: var(--color-bg-dark);
     color: var(--color-text);
     overflow-x: hidden;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    /* 防止文本选择时的闪烁 */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 可访问性：减少动画（用户偏好） */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* 焦点样式（可访问性） */
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* 隐藏默认焦点样式（鼠标用户） */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* 图片优化 */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 按钮重置 */
+button {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+/* 输入框重置 */
+input,
+select,
+textarea {
+    font-family: inherit;
+    font-size: inherit;
 }
 
 /* 滚动条通用样式 */
 ::-webkit-scrollbar {
     width: 6px;
     height: 8px;
-    /* 添加横向滚动条高度，修复移动端排行可能需要 */
 }
 
 ::-webkit-scrollbar-track {
@@ -36,4 +98,21 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
+}
+
+/* Firefox 滚动条 */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+
+/* 选择文本样式 */
+::selection {
+    background: var(--color-primary);
+    color: var(--color-text);
+}
+
+::-moz-selection {
+    background: var(--color-primary);
+    color: var(--color-text);
 }
