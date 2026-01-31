@@ -17,7 +17,10 @@
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,
     "declaration": false,
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals",
+      "vite/client"
+    ]
   },
   "include": [
     "js/**/*.ts"

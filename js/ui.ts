@@ -2,6 +2,7 @@ import { getSongUrl } from './api';
 import { Song, LyricLine, DOMCache, ScrollState, NotificationType } from './types';
 import * as player from './player';
 import { escapeHtml, formatTime, getElement } from './utils';
+import { APP_CONFIG } from './config';
 
 // --- DOM Element Cache ---
 
@@ -14,7 +15,6 @@ export function init(): void {
     DOM = {
         searchResults: getElement('#searchResults'),
         parseResults: getElement('#parseResults'),
-        savedResults: getElement('#savedResults'),
         currentCover: getElement<HTMLImageElement>('#currentCover'),
         currentTitle: getElement('#currentTitle'),
         currentArtist: getElement('#currentArtist'),
@@ -56,6 +56,8 @@ export function showNotification(message: string, type: NotificationType = 'info
 
 // 存储当前的滚动加载状态
 let currentScrollState: ScrollState | null = null;
+// NOTE: 存储滚动监听器引用，用于清理
+let currentScrollHandler: (() => void) | null = null;
 
 /**
  * 渲染歌曲列表项
@@ -93,7 +95,11 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
 
         // 点击歌曲播放，移动端跳转到播放器栏
         songItem.onclick = () => {
-            player.playSong(index, playlistForPlayback, currentScrollState ? currentScrollState.containerId : 'searchResults');
+            player.playSong(
+                index,
+                playlistForPlayback,
+                currentScrollState ? currentScrollState.containerId : 'searchResults'
+            );
             // 移动端跳转到播放器栏（第二栏）
             if (window.innerWidth <= 768 && window.switchMobilePage) {
                 window.switchMobilePage(1);
@@ -102,7 +108,7 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
 
         const favoriteBtn = songItem.querySelector('.favorite-btn');
         if (favoriteBtn) {
-            favoriteBtn.addEventListener('click', (e) => {
+            favoriteBtn.addEventListener('click', e => {
                 e.stopPropagation();
                 player.toggleFavoriteButton(song);
                 // 乐观更新 UI
@@ -121,7 +127,7 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
 
         const downloadIconBtn = songItem.querySelector('.download-icon-btn');
         if (downloadIconBtn) {
-            downloadIconBtn.addEventListener('click', async (e) => {
+            downloadIconBtn.addEventListener('click', async e => {
                 e.stopPropagation();
                 // 简单的防止重复点击
                 const btn = e.currentTarget as HTMLButtonElement;
@@ -168,7 +174,12 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
  * 监听滚动以加载更多
  */
 function setupInfiniteScroll(container: HTMLElement): void {
-    container.onscroll = () => {
+    // NOTE: 清理旧的滚动监听器
+    if (currentScrollHandler) {
+        container.removeEventListener('scroll', currentScrollHandler);
+    }
+
+    const scrollHandler = () => {
         if (!currentScrollState) return;
 
         const { scrollTop, scrollHeight, clientHeight } = container;
@@ -183,6 +194,9 @@ function setupInfiniteScroll(container: HTMLElement): void {
             }
         }
     };
+
+    currentScrollHandler = scrollHandler;
+    container.addEventListener('scroll', scrollHandler);
 }
 
 /**
@@ -208,13 +222,13 @@ export function displaySearchResults(songs: Song[], containerId: string, playlis
     }
 
     // 初始化滚动状态
-    const batchSize = 30;
+    const batchSize = APP_CONFIG.INFINITE_SCROLL_BATCH_SIZE;
     currentScrollState = {
         songs,
         containerId,
         playlistForPlayback,
         renderedCount: 0,
-        batchSize
+        batchSize,
     };
 
     // 初始渲染
@@ -223,7 +237,6 @@ export function displaySearchResults(songs: Song[], containerId: string, playlis
     currentScrollState.renderedCount = initialBatch.length;
 
     // 监听滚动
-    container.onscroll = null; // 简单的重置
     setupInfiniteScroll(container);
 }
 
@@ -257,7 +270,8 @@ export function updateCurrentSongInfo(song: Song, coverUrl: string): void {
         DOM.currentCover.src = coverUrl;
         DOM.currentCover.onerror = () => {
             // 封面加载失败时使用默认占位图
-            DOM.currentCover!.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIwIiBoZWlnaHQ9IjIyMCIgdmlld0JveD0iMCAwIDIyMCAyMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMjAiIGhlaWdodD0iMjIwIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU5LDAuMSkiIHJ4PSIyMCIvPgo8cGF0aCBkPSJNMTEwIDcwTDE0MCAxMTBIMTIwVjE1MEg5MFYxMTBINzBMMTEwIDcwWiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjMpIi8+Cjwvc3ZnPgo=';
+            DOM.currentCover!.src =
+                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIwIiBoZWlnaHQ9IjIyMCIgdmlld0JveD0iMCAwIDIyMCAyMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMjAiIGhlaWdodD0iMjIwIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU5LDAuMSkiIHJ4PSIyMCIvPgo8cGF0aCBkPSJNMTEwIDcwTDE0MCAxMTBIMTIwVjE1MEg5MFYxMTBINzBMMTEwIDcwWiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjMpIi8+Cjwvc3ZnPgo=';
         };
     }
     if (DOM.downloadSongBtn) {
@@ -288,69 +302,88 @@ export function updateProgress(currentTime: number, duration: number): void {
 
 /**
  * 更新歌词显示
- * @param lyrics 歌词行数组
+ * @param lyrics 歌词行数组（可包含翻译歌词）
  * @param currentTime 当前播放时间（秒）
  */
 let lastLyricsLength = 0; // 缓存上次歌词数量，用于判断是否需要重新渲染
 let lastActiveIndex = -1; // 缓存上次高亮行索引
+let lyricsUpdateFrame: number | null = null; // 用于节流歌词更新
 
 export function updateLyrics(lyrics: LyricLine[], currentTime: number): void {
     if (!DOM.lyricsContainer) return;
 
-    if (!lyrics.length) {
-        DOM.lyricsContainer.innerHTML = '<div class="lyric-line">暂无歌词</div>';
-        lastLyricsLength = 0;
-        lastActiveIndex = -1;
-        return;
+    // 取消之前的更新请求，避免频繁更新
+    if (lyricsUpdateFrame !== null) {
+        cancelAnimationFrame(lyricsUpdateFrame);
     }
 
-    // 计算当前应该高亮的行
-    let activeIndex = -1;
-    for (let i = 0; i < lyrics.length; i++) {
-        const nextLine = lyrics[i + 1];
-        if (currentTime >= lyrics[i].time && (!nextLine || currentTime < nextLine.time)) {
-            activeIndex = i;
-            break;
+    lyricsUpdateFrame = requestAnimationFrame(() => {
+        const container = DOM.lyricsContainer;
+        if (!container) return;
+
+        if (!lyrics.length) {
+            container.innerHTML = '<div class="lyric-line">暂无歌词</div>';
+            lastLyricsLength = 0;
+            lastActiveIndex = -1;
+            return;
         }
-    }
 
-    // NOTE: 只有歌词数量变化时才重新渲染整个 HTML
-    if (lyrics.length !== lastLyricsLength) {
-        DOM.lyricsContainer.innerHTML = lyrics.map((line, index) =>
-            `<div class="lyric-line${index === activeIndex ? ' active' : ''}" data-index="${index}" data-time="${line.time}">${escapeHtml(line.text)}</div>`
-        ).join('');
-        lastLyricsLength = lyrics.length;
-        lastActiveIndex = activeIndex;
-
-        // 滚动到高亮行
-        if (activeIndex >= 0) {
-            scrollToActiveLine();
-        }
-        return;
-    }
-
-    // NOTE: 只有高亮行变化时才更新类名
-    if (activeIndex !== lastActiveIndex) {
-        // 移除旧的高亮
-        if (lastActiveIndex >= 0) {
-            const oldActive = DOM.lyricsContainer.querySelector(`[data-index="${lastActiveIndex}"]`);
-            if (oldActive) {
-                oldActive.classList.remove('active');
+        // 计算当前应该高亮的行
+        let activeIndex = -1;
+        for (let i = 0; i < lyrics.length; i++) {
+            const nextLine = lyrics[i + 1];
+            if (currentTime >= lyrics[i].time && (!nextLine || currentTime < nextLine.time)) {
+                activeIndex = i;
+                break;
             }
         }
 
-        // 添加新的高亮
-        if (activeIndex >= 0) {
-            const newActive = DOM.lyricsContainer.querySelector(`[data-index="${activeIndex}"]`);
-            if (newActive) {
-                newActive.classList.add('active');
-                // 平滑滚动到高亮行
-                newActive.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // NOTE: 只有歌词数量变化时才重新渲染整个 HTML
+        if (lyrics.length !== lastLyricsLength) {
+            container.innerHTML = lyrics
+                .map((line, index) => {
+                    const isActive = index === activeIndex;
+                    const mainText = escapeHtml(line.text);
+                    // NOTE: 如果有翻译歌词，在原歌词下方显示
+                    const translationHtml = line.ttext
+                        ? `<div class="lyric-translation">${escapeHtml(line.ttext)}</div>`
+                        : '';
+                    return `<div class="lyric-line${isActive ? ' active' : ''}" data-index="${index}" data-time="${line.time}">${mainText}${translationHtml}</div>`;
+                })
+                .join('');
+            lastLyricsLength = lyrics.length;
+            lastActiveIndex = activeIndex;
+
+            // 滚动到高亮行
+            if (activeIndex >= 0) {
+                scrollToActiveLine();
             }
+            return;
         }
 
-        lastActiveIndex = activeIndex;
-    }
+        // NOTE: 只有高亮行变化时才更新类名
+        if (activeIndex !== lastActiveIndex) {
+            // 移除旧的高亮
+            if (lastActiveIndex >= 0) {
+                const oldActive = container.querySelector(`[data-index="${lastActiveIndex}"]`);
+                if (oldActive) {
+                    oldActive.classList.remove('active');
+                }
+            }
+
+            // 添加新的高亮
+            if (activeIndex >= 0) {
+                const newActive = container.querySelector(`[data-index="${activeIndex}"]`);
+                if (newActive) {
+                    newActive.classList.add('active');
+                    // 平滑滚动到高亮行
+                    newActive.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            lastActiveIndex = activeIndex;
+        }
+    });
 }
 
 /**
@@ -422,4 +455,3 @@ export function showError(message: string, containerId: string = 'searchResults'
         container.innerHTML = `<div class="error"><i class="fas fa-exclamation-triangle"></i><div>${escapeHtml(message)}</div></div>`;
     }
 }
-

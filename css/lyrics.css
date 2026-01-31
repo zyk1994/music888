@@ -68,3 +68,26 @@
 .lyric-line:has(+ .active) {
     color: rgba(255, 255, 255, 0.6);
 }
+
+/* ============================================
+   翻译歌词样式
+   NOTE: 双语歌词支持，在原歌词下方显示翻译
+   ============================================ */
+
+.lyric-translation {
+    font-size: 0.8em;
+    font-weight: 400;
+    opacity: 0.65;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.4;
+    /* 翻译歌词使用较细的字体 */
+    letter-spacing: 0.5px;
+}
+
+/* 高亮行的翻译歌词 */
+.lyric-line.active .lyric-translation {
+    opacity: 0.85;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+}

@@ -51,6 +51,8 @@ export interface LyricLine {
     time: number;
     /** 歌词文本 */
     text: string;
+    /** 翻译歌词文本（可选） */
+    ttext?: string;
 }
 
 /**
@@ -368,6 +370,8 @@ export interface SongUrlResult {
 export interface LyricResult {
     /** 歌词内容 */
     lyric: string;
+    /** 翻译歌词内容（可选） */
+    tlyric?: string;
 }
 
 /**
@@ -452,7 +456,6 @@ export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 export interface DOMCache {
     searchResults: HTMLElement | null;
     parseResults: HTMLElement | null;
-    savedResults: HTMLElement | null;
     currentCover: HTMLImageElement | null;
     currentTitle: HTMLElement | null;
     currentArtist: HTMLElement | null;

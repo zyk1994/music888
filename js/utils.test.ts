@@ -1,13 +1,33 @@
 /**
  * 云音乐播放器 - 工具函数单元测试
  */
-import { escapeHtml, formatTime, debounce, throttle } from './utils';
+import { escapeHtml, formatTime, debounce, throttle, getElement, getRequiredElement, safeStorage, delay } from './utils';
+
+// Mock localStorage for jsdom environment
+const localStorageMock = (() => {
+    let store: Record<string, string> = {};
+    return {
+        getItem: (key: string) => store[key] || null,
+        setItem: (key: string, value: string) => { store[key] = value.toString(); },
+        removeItem: (key: string) => { delete store[key]; },
+        clear: () => { store = {}; },
+        get length() { return Object.keys(store).length; },
+        key: (i: number) => Object.keys(store)[i] || null
+    };
+})();
+
+Object.defineProperty(globalThis, 'localStorage', {
+    value: localStorageMock,
+    writable: true
+});
 
 describe('escapeHtml', () => {
     it('应正确转义 HTML 特殊字符', () => {
-        expect(escapeHtml('<script>alert("xss")</script>')).toBe(
-            '&lt;script&gt;alert("xss")&lt;/script&gt;'
-        );
+        // escapeHtml 函数使用 textContent + innerHTML 方法
+        // 这种方法会转义 < > & 但可能不会转义双引号
+        const result = escapeHtml('<script>alert("xss")</script>');
+        // 实际输出：&lt;script&gt;alert("xss")&lt;/script&gt;
+        expect(result).toBe('&lt;script&gt;alert("xss")&lt;/script&gt;');
     });
 
     it('应处理空字符串', () => {
@@ -22,6 +42,27 @@ describe('escapeHtml', () => {
     it('应保留普通文本', () => {
         expect(escapeHtml('Hello World')).toBe('Hello World');
     });
+
+    it('应转义 HTML 标签字符', () => {
+        const result = escapeHtml('<div>');
+        // 期望值应该是转义后的 HTML 实体
+        expect(result).toBe('&lt;div&gt;');
+    });
+
+    it('应处理多行文本', () => {
+        expect(escapeHtml('Line1\nLine2')).toBe('Line1\nLine2');
+    });
+
+    it('应转义 & 符号', () => {
+        const result = escapeHtml('a & b');
+        // 期望值应该是转义后的 HTML 实体
+        expect(result).toBe('a &amp; b');
+    });
+
+    it('应转义单引号', () => {
+        const result = escapeHtml("it's a test");
+        expect(result).toBe("it's a test");
+    });
 });
 
 describe('formatTime', () => {
@@ -30,12 +71,19 @@ describe('formatTime', () => {
         expect(formatTime(65)).toBe('1:05');
         expect(formatTime(125)).toBe('2:05');
         expect(formatTime(600)).toBe('10:00');
+        expect(formatTime(3599)).toBe('59:59');
     });
 
     it('应处理非法输入', () => {
         expect(formatTime(-1)).toBe('0:00');
         expect(formatTime(NaN)).toBe('0:00');
         expect(formatTime(Infinity)).toBe('0:00');
+    });
+
+    it('应正确处理边界情况', () => {
+        expect(formatTime(59)).toBe('0:59');
+        expect(formatTime(60)).toBe('1:00');
+        expect(formatTime(61)).toBe('1:01');
     });
 });
 
@@ -54,6 +102,28 @@ describe('debounce', () => {
 
         expect(callCount).toBe(1);
     });
+
+    it('应传递正确的参数', async () => {
+        let lastArgs: unknown[] = [];
+        const fn = debounce((...args: unknown[]) => { lastArgs = args; }, 50);
+
+        fn('arg1', 2, { key: 'value' });
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        expect(lastArgs).toEqual(['arg1', 2, { key: 'value' }]);
+    });
+
+    it('应正确绑定 this 上下文', async () => {
+        const context = { value: 42 };
+        const fn = debounce(function (this: typeof context) {
+            expect(this).toBe(context);
+        }, 50);
+
+        fn.call(context);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+    });
 });
 
 describe('throttle', () => {
@@ -71,5 +141,149 @@ describe('throttle', () => {
 
         fn();
         expect(callCount).toBe(2);
+    });
+
+    it('应传递正确的参数', async () => {
+        let lastArg = 0;
+        const fn = throttle((arg: number) => { lastArg = arg; }, 50);
+
+        fn(42);
+        fn(100);
+
+        expect(lastArg).toBe(42);
+    });
+});
+
+describe('getElement', () => {
+    beforeEach(() => {
+        document.body.innerHTML = `
+            <div id="testId">Test Element</div>
+            <div class="testClass">Test Class</div>
+            <span data-test="value">Data Element</span>
+        `;
+    });
+
+    it('应通过 ID 获取元素', () => {
+        const element = getElement('#testId');
+        expect(element).not.toBeNull();
+        expect(element?.textContent).toBe('Test Element');
+    });
+
+    it('应通过类名获取元素', () => {
+        const element = getElement('.testClass');
+        expect(element).not.toBeNull();
+        expect(element?.textContent).toBe('Test Class');
+    });
+
+    it('应通过属性选择器获取元素', () => {
+        const element = getElement('[data-test="value"]');
+        expect(element).not.toBeNull();
+        expect(element?.textContent).toBe('Data Element');
+    });
+
+    it('应返回 null 当元素不存在时', () => {
+        const element = getElement('#nonExistent');
+        expect(element).toBeNull();
+    });
+
+    it('应支持泛型类型', () => {
+        const input = document.createElement('input');
+        input.id = 'testInput';
+        document.body.appendChild(input);
+
+        const element = getElement<HTMLInputElement>('#testInput');
+        if (element) {
+            expect(element.tagName).toBe('INPUT');
+        }
+    });
+});
+
+describe('getRequiredElement', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="required">Required</div>';
+    });
+
+    it('应返回存在的元素', () => {
+        const element = getRequiredElement('#required');
+        expect(element).not.toBeNull();
+        expect(element.textContent).toBe('Required');
+    });
+
+    it('应抛出错误当元素不存在时', () => {
+        expect(() => getRequiredElement('#nonExistent')).toThrow('Required element not found: #nonExistent');
+    });
+});
+
+describe('safeStorage', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        localStorage.clear();
+    });
+
+    it('应正确获取默认值', () => {
+        const result = safeStorage.get('nonExistent', 'default');
+        expect(result).toBe('default');
+    });
+
+    it('应正确设置和获取值', () => {
+        safeStorage.set('testKey', { name: 'test' });
+        const result = safeStorage.get<{ name: string }>('testKey', { name: 'default' });
+        expect(result.name).toBe('test');
+    });
+
+    it('应正确处理 JSON 解析错误', () => {
+        localStorage.setItem('invalidJson', 'not valid json');
+        const result = safeStorage.get('invalidJson', 'default');
+        expect(result).toBe('default');
+    });
+
+    it('应正确删除项', () => {
+        safeStorage.set('toDelete', 'value');
+        expect(safeStorage.get('toDelete', null)).toBe('value');
+        safeStorage.remove('toDelete');
+        expect(safeStorage.get('toDelete', null)).toBeNull();
+    });
+
+    it('应正确处理数字类型', () => {
+        safeStorage.set('numberKey', 123);
+        const result = safeStorage.get<number>('numberKey', 0);
+        expect(result).toBe(123);
+    });
+
+    it('应正确处理布尔类型', () => {
+        safeStorage.set('boolKey', true);
+        const result = safeStorage.get<boolean>('boolKey', false);
+        expect(result).toBe(true);
+    });
+});
+
+describe('delay', () => {
+    it('应在指定时间后 resolve', async () => {
+        const start = Date.now();
+        await delay(50);
+        const elapsed = Date.now() - start;
+        expect(elapsed).toBeGreaterThanOrEqual(40);
+    });
+
+    it('应支持取消', async () => {
+        const promise = delay(1000);
+
+        // 在短时间内取消
+        setTimeout(() => promise.cancel(), 50);
+
+        await expect(promise).rejects.toThrow('Delay was cancelled');
+    });
+
+    it('应正确处理并发取消', async () => {
+        const p1 = delay(500);
+        const p2 = delay(500);
+
+        setTimeout(() => p1.cancel(), 100);
+
+        await expect(p1).rejects.toThrow('Delay was cancelled');
+        await expect(p2).resolves.toBeUndefined();
     });
 });

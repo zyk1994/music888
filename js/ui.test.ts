@@ -25,9 +25,9 @@ describe('UI Helper Functions', () => {
         it('应创建通知元素', async () => {
             // 动态导入以确保 mock 生效
             const { showNotification } = await import('./ui');
-            
+
             showNotification('测试消息', 'info');
-            
+
             const notification = document.querySelector('.notification');
             expect(notification).not.toBeNull();
             expect(notification?.textContent).toBe('测试消息');
@@ -36,7 +36,7 @@ describe('UI Helper Functions', () => {
 
         it('应支持不同类型的通知', async () => {
             const { showNotification } = await import('./ui');
-            
+
             showNotification('成功消息', 'success');
             const successNotification = document.querySelector('.notification-success');
             expect(successNotification).not.toBeNull();
@@ -54,7 +54,7 @@ describe('UI Helper Functions', () => {
     describe('displaySearchResults', () => {
         it('应显示空状态当没有歌曲时', async () => {
             const { displaySearchResults } = await import('./ui');
-            
+
             // 创建容器
             const container = document.createElement('div');
             container.id = 'testResults';
@@ -67,7 +67,7 @@ describe('UI Helper Functions', () => {
 
         it('应渲染歌曲列表', async () => {
             const { displaySearchResults } = await import('./ui');
-            
+
             // 创建容器
             const container = document.createElement('div');
             container.id = 'testResults';
@@ -104,7 +104,7 @@ describe('UI Helper Functions', () => {
     describe('updateProgress', () => {
         it('应更新进度条', async () => {
             const { init, updateProgress } = await import('./ui');
-            
+
             // 创建必要的 DOM 元素
             document.body.innerHTML = `
                 <div id="progressFill"></div>
@@ -128,13 +128,13 @@ describe('UI Helper Functions', () => {
     describe('updatePlayButton', () => {
         it('应更新播放按钮图标', async () => {
             const { init, updatePlayButton } = await import('./ui');
-            
+
             document.body.innerHTML = `
                 <button id="playBtn"><i class="fas fa-play"></i></button>
             `;
 
             init();
-            
+
             updatePlayButton(true);
             let icon = document.querySelector('#playBtn i');
             expect(icon?.className).toBe('fas fa-pause');
@@ -148,7 +148,7 @@ describe('UI Helper Functions', () => {
     describe('showLoading', () => {
         it('应显示加载状态', async () => {
             const { showLoading } = await import('./ui');
-            
+
             const container = document.createElement('div');
             container.id = 'testContainer';
             document.body.appendChild(container);
@@ -163,7 +163,7 @@ describe('UI Helper Functions', () => {
     describe('showError', () => {
         it('应显示错误信息', async () => {
             const { showError } = await import('./ui');
-            
+
             const container = document.createElement('div');
             container.id = 'testContainer';
             document.body.appendChild(container);
@@ -176,7 +176,7 @@ describe('UI Helper Functions', () => {
 
         it('应转义 HTML 特殊字符', async () => {
             const { showError } = await import('./ui');
-            
+
             const container = document.createElement('div');
             container.id = 'testContainer';
             document.body.appendChild(container);
@@ -194,11 +194,22 @@ describe('Lyrics Display', () => {
     beforeEach(() => {
         // Mock scrollIntoView，因为 jsdom 不支持
         Element.prototype.scrollIntoView = vi.fn();
+        // Mock requestAnimationFrame，使其立即执行回调
+        vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+            return setTimeout(() => cb(performance.now()), 0) as unknown as number;
+        });
+        vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+            clearTimeout(id);
+        });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
     it('应显示暂无歌词当歌词为空时', async () => {
         const { init, updateLyrics } = await import('./ui');
-        
+
         document.body.innerHTML = `
             <div id="lyricsContainer"></div>
         `;
@@ -206,19 +217,22 @@ describe('Lyrics Display', () => {
         init();
         updateLyrics([], 0);
 
+        // 等待 requestAnimationFrame 执行
+        await new Promise(resolve => setTimeout(resolve, 10));
+
         const container = document.getElementById('lyricsContainer');
         expect(container?.textContent).toContain('暂无歌词');
     });
 
     it('应渲染歌词行', async () => {
         const { init, updateLyrics } = await import('./ui');
-        
+
         document.body.innerHTML = `
             <div id="lyricsContainer"></div>
         `;
 
         init();
-        
+
         const lyrics = [
             { time: 0, text: '第一行歌词' },
             { time: 5, text: '第二行歌词' },
@@ -226,6 +240,9 @@ describe('Lyrics Display', () => {
         ];
 
         updateLyrics(lyrics, 0);
+
+        // 等待 requestAnimationFrame 执行
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         const container = document.getElementById('lyricsContainer');
         const lines = container?.querySelectorAll('.lyric-line');
@@ -236,13 +253,13 @@ describe('Lyrics Display', () => {
         // 重新导入模块以重置状态
         vi.resetModules();
         const { init, updateLyrics } = await import('./ui');
-        
+
         document.body.innerHTML = `
             <div id="lyricsContainer"></div>
         `;
 
         init();
-        
+
         const lyrics = [
             { time: 0, text: '第一行歌词' },
             { time: 5, text: '第二行歌词' },
@@ -251,6 +268,9 @@ describe('Lyrics Display', () => {
 
         // 当前时间为 6 秒，应该高亮第二行
         updateLyrics(lyrics, 6);
+
+        // 等待 requestAnimationFrame 执行
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         const container = document.getElementById('lyricsContainer');
         const activeLine = container?.querySelector('.lyric-line.active');

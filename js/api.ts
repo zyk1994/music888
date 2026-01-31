@@ -28,6 +28,8 @@ import {
     MusicErrorType,
 } from './types';
 
+import { logger, APP_CONFIG } from './config';
+
 // 重新导出 Song 类型供其他模块使用
 export type { Song } from './types';
 
@@ -71,7 +73,6 @@ let currentAPI = API_SOURCES[0];
 // NOTE: GDStudio API 可用性缓存，避免重复请求不可用的 API
 let gdstudioApiAvailable: boolean | null = null;
 let gdstudioApiLastCheck: number = 0;
-const GDSTUDIO_CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
 
 /**
  * 检查 GDStudio API 是否可用（带缓存）
@@ -79,7 +80,7 @@ const GDSTUDIO_CACHE_TTL = 5 * 60 * 1000; // 5 分钟缓存
 function isGDStudioApiAvailable(): boolean {
     const now = Date.now();
     // 如果缓存过期或未检测，返回 true 让它尝试
-    if (gdstudioApiAvailable === null || now - gdstudioApiLastCheck > GDSTUDIO_CACHE_TTL) {
+    if (gdstudioApiAvailable === null || now - gdstudioApiLastCheck > APP_CONFIG.GDSTUDIO_CACHE_TTL) {
         return true;
     }
     return gdstudioApiAvailable;
@@ -91,7 +92,7 @@ function isGDStudioApiAvailable(): boolean {
 function markGDStudioApiUnavailable(): void {
     gdstudioApiAvailable = false;
     gdstudioApiLastCheck = Date.now();
-    console.warn('GDStudio API 标记为不可用，将在 5 分钟后重试');
+    logger.warn('GDStudio API 标记为不可用，将在 5 分钟后重试');
 }
 
 /**
@@ -106,22 +107,11 @@ function markGDStudioApiAvailable(): void {
 const PROXY_ENDPOINT = '/api/proxy';
 
 /**
- * 检测是否需要使用代理
- * 开发环境使用 Vite 代理，生产环境使用 Vercel Serverless Function
- */
-function shouldUseProxy(): boolean {
-    return true;
-}
-
-/**
  * 将外部 URL 转换为代理 URL
  * @param url 原始外部 API URL
  * @returns 代理后的 URL
  */
 function toProxyUrl(url: string): string {
-    if (!shouldUseProxy()) {
-        return url;
-    }
     return `${PROXY_ENDPOINT}?url=${encodeURIComponent(url)}`;
 }
 
@@ -212,7 +202,7 @@ export async function findWorkingAPI(): Promise<ApiDetectionResult> {
             console.log(`❌ ${api.name} 不可用`);
         }
     }
-    console.error('所有 API 均不可用');
+    logger.error('所有 API 均不可用');
     return { success: false };
 }
 
@@ -339,7 +329,7 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
     try {
         return `https://p1.music.126.net/${song.pic_id}/${song.pic_id}.jpg?param=${size}y${size}`;
     } catch (error) {
-        console.error('获取专辑图失败:', error);
+        logger.error('获取专辑图失败:', error);
         return '';
     }
 }
@@ -354,7 +344,7 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
  */
 /**
  * 检查 URL 是否可能是试听版本
- * NOTE: 试听版本通常包含特定的 URL 模式
+ * NOTE: VIP 歌曲试听版本通常是 30-60 秒，包含特定的 URL 模式
  */
 function isProbablyPreview(url: string): boolean {
     // 常见的试听版本 URL 特征
@@ -363,16 +353,35 @@ function isProbablyPreview(url: string): boolean {
         /trial/i,
         /sample/i,
         /\.30\./,  // 30秒试听
+        /\.45\./,  // 45秒试听 (常见 VIP 试听长度)
         /\.60\./,  // 60秒试听
+        /_30\./,   // 30秒试听变体
+        /_45\./,   // 45秒试听变体
+        /_60\./,   // 60秒试听变体
+        /\/m\d+\//,  // 可能是试听cdn
+        /song\.mp3\?id=/,  // 可能是动态生成的试听链接
+        /m4a\?/,  // m4a 格式带参数可能是试听
+        /audiocdn/i,  // 音频cdn可能是试听
+        /static\.mp3/i,  // 静态mp3可能是试听
+        /\/vip\//i,  // VIP 目录下的文件可能是试听
+        /freepart/i,  // 免费部分 = 试听
+        /clip/i,  // clip = 片段
     ];
+
+    // 检查 URL 长度，太短的 URL 可能是试听
+    if (url.length < 50) {
+        return true;
+    }
+
     return previewPatterns.some(pattern => pattern.test(url));
 }
 
 /**
  * 备选音乐源列表，用于跨源搜索
  * NOTE: 当主源返回试听版本时，尝试从这些源获取完整版本
+ * 优先级: kuwo/kugou 通常有更多免费资源
  */
-const FALLBACK_SOURCES = ['kuwo', 'kugou', 'migu', 'tencent'];
+const FALLBACK_SOURCES = ['kuwo', 'kugou', 'migu', 'ximalaya', 'tencent', 'joox'];
 
 /**
  * 从指定音乐源直接获取歌曲 URL（内部函数）
@@ -387,9 +396,9 @@ async function getSongUrlFromSource(
         console.log('GDStudio API 暂时不可用，跳过');
         return null;
     }
-    
+
     const gdstudioUrl = getGDStudioApiUrl();
-    
+
     try {
         const response = await fetchWithRetry(
             `${gdstudioUrl}?types=url&source=${source}&id=${songId}&br=${quality}`,
@@ -397,7 +406,7 @@ async function getSongUrlFromSource(
             1  // 减少重试次数
         );
         const data: GDStudioUrlResponse = await response.json();
-        
+
         if (data?.url) {
             markGDStudioApiAvailable();
             return { url: data.url, br: String(data.br || quality) };
@@ -410,6 +419,30 @@ async function getSongUrlFromSource(
         }
     }
     return null;
+}
+
+/**
+ * 计算两个字符串的相似度（简单实现）
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+    const normalized1 = str1.toLowerCase().replace(/\s+/g, '');
+    const normalized2 = str2.toLowerCase().replace(/\s+/g, '');
+
+    // 如果完全相同
+    if (normalized1 === normalized2) return 1.0;
+
+    // 如果一个是另一个的子串
+    if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
+        return 0.8;
+    }
+
+    // 计算共同字符数量
+    const set1 = new Set(normalized1);
+    const set2 = new Set(normalized2);
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+
+    return intersection.size / union.size;
 }
 
 /**
@@ -427,24 +460,24 @@ async function searchSongFromOtherSources(
         console.log('GDStudio API 暂时不可用，跳过跨源搜索');
         return null;
     }
-    
+
     const gdstudioUrl = getGDStudioApiUrl();
     const searchKeyword = `${songName} ${artistName}`;
-    
+
     console.log(`尝试从其他音乐源搜索: ${searchKeyword}`);
-    
+
     for (const source of FALLBACK_SOURCES) {
         if (source === excludeSource) continue;
-        
+
         try {
             console.log(`尝试从 ${source} 搜索...`);
             const response = await fetchWithRetry(
-                `${gdstudioUrl}?types=search&source=${source}&name=${encodeURIComponent(searchKeyword)}&count=5`,
+                `${gdstudioUrl}?types=search&source=${source}&name=${encodeURIComponent(searchKeyword)}&count=10`,
                 {},
                 1  // 减少重试次数
             );
             const data = await response.json();
-            
+
             // 解析搜索结果
             let songs: GDStudioSong[] = [];
             if (Array.isArray(data)) {
@@ -455,28 +488,32 @@ async function searchSongFromOtherSources(
                     return !!(item && typeof item === 'object' && 'id' in item && 'name' in item);
                 }) as GDStudioSong[];
             }
-            
-            // 查找匹配的歌曲（名称相似）
-            for (const song of songs) {
-                // 简单的名称匹配：检查歌曲名是否包含在搜索结果中
-                const normalizedSongName = songName.toLowerCase().replace(/\s+/g, '');
-                const normalizedResultName = song.name.toLowerCase().replace(/\s+/g, '');
-                
-                if (normalizedResultName.includes(normalizedSongName) ||
-                    normalizedSongName.includes(normalizedResultName)) {
-                    // 尝试获取这首歌的 URL
-                    const urlResult = await getSongUrlFromSource(song.id, source, quality);
-                    if (urlResult && urlResult.url && !isProbablyPreview(urlResult.url)) {
-                        console.log(`从 ${source} 找到完整版本:`, urlResult.url.substring(0, 50) + '...');
-                        return urlResult;
-                    }
+
+            // 按相似度排序查找最佳匹配
+            const bestMatches = songs
+                .map(song => ({
+                    song,
+                    similarity: calculateSimilarity(songName, song.name)
+                }))
+                .filter(match => match.similarity > 0.5)
+                .sort((a, b) => b.similarity - a.similarity);
+
+            // 查找匹配的歌曲（名称相似度 > 0.5）
+            for (const match of bestMatches) {
+                const song = match.song;
+
+                // 尝试获取这首歌的 URL
+                const urlResult = await getSongUrlFromSource(song.id, source, quality);
+                if (urlResult && urlResult.url && !isProbablyPreview(urlResult.url)) {
+                    console.log(`从 ${source} 找到完整版本 (相似度: ${match.similarity.toFixed(2)}):`, urlResult.url.substring(0, 50) + '...');
+                    return urlResult;
                 }
             }
         } catch (e) {
             console.warn(`从 ${source} 搜索失败:`, e);
         }
     }
-    
+
     return null;
 }
 
@@ -621,6 +658,7 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
 /**
  * 获取歌词
  * NOTE: 优先使用 NEC API（最稳定），其次 GDStudio API
+ * 同时获取原歌词和翻译歌词以支持双语显示
  */
 export async function getLyrics(song: Song): Promise<LyricResult> {
     const source = song.source || 'netease';
@@ -634,7 +672,10 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
             const data: NeteaseLyricResponse = await response.json();
             if (data.code === 200 && data.lrc?.lyric) {
                 console.log('NEC API 获取歌词成功');
-                return { lyric: data.lrc.lyric };
+                return {
+                    lyric: data.lrc.lyric,
+                    tlyric: data.tlyric?.lyric || undefined
+                };
             }
         } catch (error) {
             console.warn('NEC API 获取歌词失败:', error);
@@ -655,7 +696,10 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
             if (data?.lyric) {
                 markGDStudioApiAvailable();
                 console.log('GDStudio API 获取歌词成功');
-                return { lyric: data.lyric };
+                return {
+                    lyric: data.lyric,
+                    tlyric: data.tlyric || undefined
+                };
             }
         } catch (e) {
             console.warn('GDStudio API 获取歌词失败:', e);
@@ -667,7 +711,7 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
 
     // 3. 返回空歌词
     console.log('无法获取歌词');
-    return { lyric: '' };
+    return { lyric: '', tlyric: undefined };
 }
 
 /**
@@ -811,6 +855,12 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
             }
         } catch (error) {
             console.error('NEC API 搜索失败:', error);
+            throw new MusicError(
+                MusicErrorType.API,
+                `NEC API search failed: ${error}`,
+                '搜索失败，请稍后重试',
+                error instanceof Error ? error : undefined
+            );
         }
     }
 
@@ -824,8 +874,12 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
 export async function exploreRadarAPI(): Promise<Song[]> {
     const keywords = ['周杰伦', '林俊杰', '邓紫棋', '薛之谦', '陈奕迅', '五月天', '华晨宇', 'TFBOYS'];
 
-    // 打乱关键词数组，增加随机性
-    const shuffled = keywords.sort(() => Math.random() - 0.5);
+    // 打乱关键词数组，使用 Fisher-Yates 洗牌算法
+    const shuffled = [...keywords];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
 
     // 依次尝试不同关键词，直到成功获取数据
     for (const keyword of shuffled.slice(0, 3)) {
@@ -918,7 +972,7 @@ export async function parsePlaylistAPI(playlistUrlOrId: string): Promise<Playlis
                 'API返回空数据'
             );
         }
-        
+
         if ('error' in playlistData || 'msg' in playlistData) {
             const errorData = playlistData as MetingErrorResponse;
             throw new MusicError(

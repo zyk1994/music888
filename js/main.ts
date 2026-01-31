@@ -256,6 +256,21 @@ function bindEventListeners(): void {
         });
     }
 
+    // NOTE: 清空所有歌单按钮
+    const clearAllPlaylistsBtn = getElement('.clear-all-btn');
+    if (clearAllPlaylistsBtn) {
+        clearAllPlaylistsBtn.addEventListener('click', () => {
+            if (confirm('确定要清空所有已保存的歌单吗？此操作不可恢复。')) {
+                player.clearAllSavedPlaylists();
+                const container = getElement('#savedPlaylistsList');
+                if (container) {
+                    container.innerHTML = `<div class="empty-saved-state"><i class="fas fa-music"></i><div>暂无保存的歌单</div><div style="margin-top: 8px; font-size: 12px; opacity: 0.7;">解析网易云歌单后可保存到这里</div></div>`;
+                }
+                ui.showNotification('已清空所有歌单', 'success');
+            }
+        });
+    }
+
     // NOTE: 全局键盘快捷键
     document.addEventListener('keydown', (e) => {
         // 如果正在输入框中，不触发快捷键
@@ -312,10 +327,10 @@ async function handleSearch(): Promise<void> {
 
     if (!searchInput) return;
 
-    const keyword = searchInput.value;
+    const keyword = searchInput.value.trim();
     const source = sourceSelect?.value || 'netease'; // 从选择器获取音乐源
 
-    if (!keyword.trim()) {
+    if (!keyword) {
         ui.showNotification('请输入搜索关键词', 'warning');
         return;
     }
@@ -434,8 +449,13 @@ function loadFavorites(): void {
         countBadge.textContent = favorites.length.toString();
     }
 
-    if (favorites.length > 0 && container) {
-        ui.displaySearchResults(favorites, 'favoritesResults', favorites);
+    // NOTE: 无论收藏数量如何都更新容器，确保空列表时显示空状态
+    if (container) {
+        if (favorites.length > 0) {
+            ui.displaySearchResults(favorites, 'favoritesResults', favorites);
+        } else {
+            container.innerHTML = `<div class="empty-state"><i class="far fa-heart"></i><div>暂无收藏的歌曲</div><div style="margin-top: 8px; font-size: 12px; opacity: 0.7;">点击歌曲旁的爱心添加收藏</div></div>`;
+        }
     }
 }
 
@@ -446,8 +466,13 @@ function loadPlayHistory(): void {
     const history = player.getPlayHistory();
     const container = getElement('#historyResults');
 
-    if (history.length > 0 && container) {
-        ui.displaySearchResults(history, 'historyResults', history);
+    // NOTE: 无论历史记录数量如何都更新容器
+    if (container) {
+        if (history.length > 0) {
+            ui.displaySearchResults(history, 'historyResults', history);
+        } else {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-history"></i><div>暂无播放记录</div></div>`;
+        }
     }
 }
 

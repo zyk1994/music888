@@ -146,6 +146,7 @@ module.exports = async (req, res) => {
 
     } catch (error) {
         console.error('Proxy error:', error.message);
-        res.status(500).json({ error: 'Failed to proxy request', details: error.message });
+        // NOTE: 不向客户端暴露内部错误详情，只返回通用错误消息
+        res.status(500).json({ error: 'Failed to proxy request' });
     }
 };

@@ -27,7 +27,7 @@ export function debounce<T extends (...args: any[]) => unknown>(
     delay: number
 ): (...args: Parameters<T>) => void {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    
+
     return function (this: unknown, ...args: Parameters<T>): void {
         if (timeoutId) {
             clearTimeout(timeoutId);
@@ -51,7 +51,7 @@ export function throttle<T extends (...args: any[]) => unknown>(
     limit: number
 ): (...args: Parameters<T>) => void {
     let inThrottle = false;
-    
+
     return function (this: unknown, ...args: Parameters<T>): void {
         if (!inThrottle) {
             fn.apply(this, args);
@@ -122,7 +122,7 @@ export const safeStorage = {
             return defaultValue;
         }
     },
-    
+
     set<T>(key: string, value: T): boolean {
         try {
             localStorage.setItem(key, JSON.stringify(value));
@@ -132,7 +132,7 @@ export const safeStorage = {
             return false;
         }
     },
-    
+
     remove(key: string): boolean {
         try {
             localStorage.removeItem(key);
@@ -141,8 +141,18 @@ export const safeStorage = {
             console.error(`Failed to remove ${key} from localStorage:`, error);
             return false;
         }
-    }
+    },
 };
+
+/**
+ * 延迟取消错误
+ */
+export class DelayCancelledError extends Error {
+    constructor() {
+        super('Delay was cancelled');
+        this.name = 'DelayCancelledError';
+    }
+}
 
 /**
  * 创建带取消功能的延迟 Promise
@@ -150,17 +160,17 @@ export const safeStorage = {
  */
 export function delay(ms: number): Promise<void> & { cancel: () => void } {
     let timeoutId: ReturnType<typeof setTimeout>;
-    let rejectFn: () => void;
-    
+    let rejectFn: (reason: Error) => void;
+
     const promise = new Promise<void>((resolve, reject) => {
         rejectFn = reject;
         timeoutId = setTimeout(resolve, ms);
     }) as Promise<void> & { cancel: () => void };
-    
+
     promise.cancel = () => {
         clearTimeout(timeoutId);
-        rejectFn();
+        rejectFn(new DelayCancelledError());
     };
-    
+
     return promise;
 }
