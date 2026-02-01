@@ -94,17 +94,13 @@ function renderSongItems(songs: Song[], startIndex: number, container: HTMLEleme
             </div>
         `;
 
-        // 点击歌曲播放，移动端跳转到播放器栏
+        // 点击歌曲播放
         songItem.onclick = () => {
             player.playSong(
                 index,
                 playlistForPlayback,
                 currentScrollState ? currentScrollState.containerId : 'searchResults'
             );
-            // 移动端跳转到播放器栏（第二栏）
-            if (window.innerWidth <= 768 && window.switchMobilePage) {
-                window.switchMobilePage(1);
-            }
         };
 
         const favoriteBtn = songItem.querySelector('.favorite-btn');

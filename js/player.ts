@@ -205,6 +205,11 @@ export async function playSong(
     isSeekingFullVersion = false;
     fullVersionSearchCount = 0;
 
+    // NOTE: 移动端自动聚焦到播放器页面
+    if (window.innerWidth <= 768 && window.switchMobilePage) {
+        window.switchMobilePage(1);
+    }
+
     if (song.source === 'kuwo') {
         // NOTE: 酷我音乐源在 GDStudio API 中是稳定的，不再跳过
         console.log('使用酷我音乐源播放:', song.name);
