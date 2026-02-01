@@ -4,7 +4,7 @@
  */
 import * as api from './api';
 import { Song, PlaylistData, LyricLine, PlayMode, MusicError } from './types';
-import { needsProxy, logger, APP_CONFIG } from './config';
+import { needsProxy, logger, APP_CONFIG, PREVIEW_DETECTION } from './config';
 import * as ui from './ui';
 
 // --- Player State ---
@@ -23,6 +23,8 @@ let currentPlayRequestId = 0; // 防止播放请求竞态条件
 let playHistorySongs: Song[] = []; // NOTE: 存储播放历史歌曲对象，避免索引失效
 let savedVolume: number = loadSavedVolume(); // 从 localStorage 恢复音量
 let isFading: boolean = false; // NOTE: 防止淡入淡出重入
+let isSeekingFullVersion: boolean = false; // NOTE: 防止重复触发跨源搜索
+let fullVersionSearchCount = 0; // NOTE: 记录当前歌曲的跨源搜索次数，防止无限循环
 
 // --- Volume Persistence ---
 
@@ -198,6 +200,10 @@ export async function playSong(
     currentIndex = index;
     lastActiveContainer = containerId;
     const song = currentPlaylist[index];
+
+    // NOTE: 重置跨源搜索状态
+    isSeekingFullVersion = false;
+    fullVersionSearchCount = 0;
 
     if (song.source === 'kuwo') {
         // NOTE: 酷我音乐源在 GDStudio API 中是稳定的，不再跳过
@@ -771,33 +777,88 @@ audioPlayer.addEventListener('timeupdate', () => {
 audioPlayer.addEventListener('loadedmetadata', () => {
     if (audioPlayer.duration) {
         ui.updateProgress(audioPlayer.currentTime, audioPlayer.duration);
-        // NOTE: 检测试听版本 - 如果时长在 25-65 秒之间，很可能是 VIP 试听
-        if (audioPlayer.duration >= 25 && audioPlayer.duration <= 65) {
-            const song = getCurrentSong();
-            if (song) {
-                logger.warn(`检测到可能的试听版本 (${Math.round(audioPlayer.duration)}秒): ${song.name}`);
-                ui.showNotification(`检测到试听版本，正在尝试从其他源获取完整版...`, 'warning');
 
-                // NOTE: 自动尝试从其他源获取完整版本
-                const quality = (document.getElementById('qualitySelect') as HTMLSelectElement)?.value || '320';
-                api.tryGetFullVersionFromOtherSources(song, quality).then(result => {
-                    if (result && result.url) {
-                        logger.info('从其他源找到完整版本，自动切换');
-                        ui.showNotification('已找到完整版本，正在切换...', 'success');
-                        // 保存当前播放位置
-                        const currentTime = audioPlayer.currentTime;
-                        // 切换到新 URL
-                        audioPlayer.src = result.url;
-                        audioPlayer.currentTime = Math.min(currentTime, 10); // 从相近位置继续
-                        audioPlayer.play().catch(e => logger.warn('切换完整版播放失败:', e));
-                    } else {
-                        ui.showNotification(`当前播放的是试听版本 (${Math.round(audioPlayer.duration)}秒)`, 'warning');
+        // NOTE: 多维度试听检测
+        const duration = audioPlayer.duration;
+        const song = getCurrentSong();
+
+        // 检查是否在试听时长区间
+        const isInPreviewRange = duration >= PREVIEW_DETECTION.MIN_DURATION &&
+                                  duration <= PREVIEW_DETECTION.MAX_DURATION;
+
+        // 检查是否接近典型试听时长（30秒/60秒）
+        const isNearTypicalDuration = PREVIEW_DETECTION.TYPICAL_DURATIONS.some(
+            typical => Math.abs(duration - typical) <= PREVIEW_DETECTION.DURATION_TOLERANCE
+        );
+
+        // 综合判断：在区间内且接近典型时长
+        const isProbablyPreview = isInPreviewRange && isNearTypicalDuration;
+
+        if (isProbablyPreview && song && !isSeekingFullVersion && fullVersionSearchCount < 2) {
+            logger.warn(`检测到可能的试听版本 (${Math.round(duration)}秒): ${song.name}`);
+            ui.showNotification(`检测到试听版本 (${Math.round(duration)}秒)，正在搜索完整版...`, 'warning');
+
+            // 标记正在搜索，防止重入
+            isSeekingFullVersion = true;
+            fullVersionSearchCount++;
+
+            const quality = (document.getElementById('qualitySelect') as HTMLSelectElement)?.value || '320';
+            const currentRequestId = currentPlayRequestId; // 保存当前请求ID
+
+            api.tryGetFullVersionFromOtherSources(song, quality).then(result => {
+                // 检查是否还是同一首歌（防止用户已切歌）
+                if (currentRequestId !== currentPlayRequestId) {
+                    logger.debug('用户已切歌，放弃切换完整版');
+                    return;
+                }
+
+                if (result && result.url) {
+                    logger.info('从其他源找到完整版本，自动切换');
+                    ui.showNotification('已找到完整版本，正在无缝切换...', 'success');
+
+                    // 保存当前播放状态
+                    const wasPlaying = !audioPlayer.paused;
+                    const currentTime = audioPlayer.currentTime;
+                    const currentVolume = audioPlayer.volume;
+
+                    // 处理代理 URL
+                    let newUrl = result.url.replace(/^http:/, 'https:');
+                    if (needsProxy(newUrl)) {
+                        newUrl = `/api/proxy?url=${encodeURIComponent(newUrl)}`;
                     }
-                }).catch(e => {
-                    logger.warn('跨源搜索失败:', e);
-                    ui.showNotification(`当前播放的是试听版本 (${Math.round(audioPlayer.duration)}秒)`, 'warning');
-                });
-            }
+
+                    // 无缝切换：淡出 → 换源 → 淡入
+                    fadeOut().then(() => {
+                        audioPlayer.src = newUrl;
+                        audioPlayer.load();
+
+                        audioPlayer.addEventListener('canplay', function onCanPlay() {
+                            audioPlayer.removeEventListener('canplay', onCanPlay);
+                            // 从相近位置继续（最多 10 秒，避免超出新音频时长）
+                            audioPlayer.currentTime = Math.min(currentTime, 10);
+                            audioPlayer.volume = 0;
+
+                            if (wasPlaying) {
+                                audioPlayer.play().then(() => {
+                                    fadeIn();
+                                }).catch(e => {
+                                    logger.warn('切换完整版播放失败:', e);
+                                    audioPlayer.volume = currentVolume;
+                                });
+                            } else {
+                                audioPlayer.volume = currentVolume;
+                            }
+                        }, { once: true });
+                    });
+                } else {
+                    ui.showNotification(`当前播放的是试听版本 (${Math.round(duration)}秒)`, 'warning');
+                }
+            }).catch(e => {
+                logger.warn('跨源搜索失败:', e);
+                ui.showNotification(`当前播放的是试听版本 (${Math.round(duration)}秒)`, 'warning');
+            }).finally(() => {
+                isSeekingFullVersion = false;
+            });
         }
     }
 });

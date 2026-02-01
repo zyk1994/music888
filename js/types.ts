@@ -41,6 +41,8 @@ export interface Song {
     source: string;
     /** 封面 URL（用于 NEC API） */
     pic_url?: string;
+    /** 歌曲时长（毫秒）- 用于试听检测 */
+    duration?: number;
 }
 
 /**
@@ -362,6 +364,8 @@ export interface SongUrlResult {
     url: string;
     /** 比特率 */
     br: string;
+    /** 文件大小（字节）- 用于试听检测 */
+    size?: number;
 }
 
 /**
