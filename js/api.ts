@@ -196,10 +196,13 @@ export async function findWorkingAPI(): Promise<ApiDetectionResult> {
         const isWorking = await testAPI(api);
         if (isWorking) {
             currentAPI = api;
+            if (api.type === 'gdstudio') markGDStudioApiAvailable();
             console.log(`✅ ${api.name} 可用`);
             return { success: true, name: api.name };
         } else {
             console.log(`❌ ${api.name} 不可用`);
+            // NOTE: GDStudio API 测试失败时立即标记，避免后续重复尝试
+            if (api.type === 'gdstudio') markGDStudioApiUnavailable();
         }
     }
     logger.error('所有 API 均不可用');
@@ -325,13 +328,9 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
         console.warn('Meting API 获取封面失败，尝试使用 CDN 构造:', e);
     }
 
-    // 3. 最后尝试 CDN 构造
-    try {
-        return `https://p1.music.126.net/${song.pic_id}/${song.pic_id}.jpg?param=${size}y${size}`;
-    } catch (error) {
-        logger.error('获取专辑图失败:', error);
-        return '';
-    }
+    // 3. 最后返回空字符串（CDN 构造需要 encrypt_id，无法仅从 pic_id 得到）
+    logger.warn('所有方式获取封面均失败');
+    return '';
 }
 
 /**
@@ -347,31 +346,14 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
  * NOTE: VIP 歌曲试听版本通常是 30-60 秒，包含特定的 URL 模式
  */
 function isProbablyPreview(url: string): boolean {
-    // 常见的试听版本 URL 特征
+    // NOTE: 只检查明确的试听版本 URL 特征，减少误判
     const previewPatterns = [
         /preview/i,
         /trial/i,
         /sample/i,
-        /\.30\./,  // 30秒试听
-        /\.45\./,  // 45秒试听 (常见 VIP 试听长度)
-        /\.60\./,  // 60秒试听
-        /_30\./,   // 30秒试听变体
-        /_45\./,   // 45秒试听变体
-        /_60\./,   // 60秒试听变体
-        /\/m\d+\//,  // 可能是试听cdn
-        /song\.mp3\?id=/,  // 可能是动态生成的试听链接
-        /m4a\?/,  // m4a 格式带参数可能是试听
-        /audiocdn/i,  // 音频cdn可能是试听
-        /static\.mp3/i,  // 静态mp3可能是试听
-        /\/vip\//i,  // VIP 目录下的文件可能是试听
         /freepart/i,  // 免费部分 = 试听
         /clip/i,  // clip = 片段
     ];
-
-    // 检查 URL 长度，太短的 URL 可能是试听
-    if (url.length < 50) {
-        return true;
-    }
 
     return previewPatterns.some(pattern => pattern.test(url));
 }
@@ -381,7 +363,10 @@ function isProbablyPreview(url: string): boolean {
  * NOTE: 当主源返回试听版本时，尝试从这些源获取完整版本
  * 优先级: kuwo/kugou 通常有更多免费资源
  */
-const FALLBACK_SOURCES = ['kuwo', 'kugou', 'migu', 'ximalaya', 'tencent', 'joox'];
+const FALLBACK_SOURCES = ['kuwo', 'kugou', 'migu', 'ximalaya', 'joox'];
+
+// NOTE: 存储正在尝试跨源搜索的歌曲ID，避免重复搜索
+const crossSourceSearchInProgress = new Set<string>();
 
 /**
  * 从指定音乐源直接获取歌曲 URL（内部函数）
@@ -403,7 +388,7 @@ async function getSongUrlFromSource(
         const response = await fetchWithRetry(
             `${gdstudioUrl}?types=url&source=${source}&id=${songId}&br=${quality}`,
             {},
-            1  // 减少重试次数
+            0  // NOTE: 不重试，快速失败
         );
         const data: GDStudioUrlResponse = await response.json();
 
@@ -515,6 +500,39 @@ async function searchSongFromOtherSources(
     }
 
     return null;
+}
+
+/**
+ * 当检测到试听版本时，尝试从其他源获取完整版本
+ * NOTE: 由 player.ts 在 loadedmetadata 检测到试听时调用
+ */
+export async function tryGetFullVersionFromOtherSources(
+    song: Song,
+    quality: string
+): Promise<SongUrlResult | null> {
+    const songKey = `${song.id}_${song.source}`;
+
+    // 避免重复搜索
+    if (crossSourceSearchInProgress.has(songKey)) {
+        console.log('跨源搜索已在进行中，跳过');
+        return null;
+    }
+
+    crossSourceSearchInProgress.add(songKey);
+
+    try {
+        console.log('检测到试听版本，尝试从其他音乐源获取完整版本...');
+        const artistName = Array.isArray(song.artist) ? song.artist[0] : song.artist;
+        const result = await searchSongFromOtherSources(
+            song.name,
+            artistName,
+            song.source || 'netease',
+            quality
+        );
+        return result;
+    } finally {
+        crossSourceSearchInProgress.delete(songKey);
+    }
 }
 
 export async function getSongUrl(song: Song, quality: string): Promise<SongUrlResult> {
@@ -751,7 +769,7 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
             const response = await fetchWithRetry(
                 `${gdstudioUrl}?types=search&source=${source}&name=${encodeURIComponent(keyword)}&count=30`,
                 {},
-                1  // 减少重试次数
+                0  // NOTE: 不重试，403 错误直接标记为不可用
             );
             const data = await response.json();
 
@@ -961,8 +979,9 @@ export async function parsePlaylistAPI(playlistUrlOrId: string): Promise<Playlis
             '歌单解析失败，请检查歌单ID是否正确'
         );
     } else {
-        // Meting API 新格式: /?type=playlist&id=xxx
-        const response = await fetchWithRetry(`${currentAPI.url}/?type=playlist&id=${playlistId}`);
+        // NOTE: 始终使用 Meting API URL 解析歌单，而非 currentAPI（可能是 GDStudio）
+        const metingUrl = getMetingApiUrl();
+        const response = await fetchWithRetry(`${metingUrl}/?type=playlist&id=${playlistId}`);
         const playlistData: MetingSong[] | MetingErrorResponse = await response.json();
 
         if (!playlistData) {

@@ -45,7 +45,8 @@
     display: grid;
     grid-template-columns: 600px 450px 350px;
     gap: 25px;
-    min-height: calc(var(--vh, 1vh) * 100 - 200px);
+    /* NOTE: 使用 calc 确保 footer 可见，不留空白 */
+    min-height: calc(100vh - 150px);
     align-items: start;
 }
 

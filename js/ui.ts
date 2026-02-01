@@ -405,32 +405,33 @@ function scrollToActiveLine(): void {
  * @param containerId 容器元素 ID
  */
 export function updateActiveItem(currentIndex: number, containerId: string): void {
-    document.querySelectorAll('.song-item').forEach(item => item.classList.remove('active'));
-
+    // NOTE: 只在目标容器内移除 active，避免影响其他容器的高亮状态
     const container = getElement(`#${containerId}`);
-    if (container) {
-        // 使用 data-index 查找
-        let activeItem = container.querySelector(`.song-item[data-index="${currentIndex}"]`);
+    if (!container) return;
 
-        // 如果未渲染（在无限滚动后面），则需要处理
-        if (!activeItem && currentScrollState && currentScrollState.containerId === containerId) {
-            // 如果目标索引超出了当前渲染范围，强制渲染到那个位置
-            if (currentIndex >= currentScrollState.renderedCount) {
-                const { songs, renderedCount, playlistForPlayback } = currentScrollState;
-                // 确保我们要渲染的范围是有效的
-                if (renderedCount < songs.length) {
-                    const neededBatch = songs.slice(renderedCount, currentIndex + 20); // 多渲染一点
-                    renderSongItems(neededBatch, renderedCount, container, playlistForPlayback);
-                    currentScrollState.renderedCount += neededBatch.length;
-                    activeItem = container.querySelector(`.song-item[data-index="${currentIndex}"]`);
-                }
+    container.querySelectorAll('.song-item').forEach(item => item.classList.remove('active'));
+
+    // 使用 data-index 查找
+    let activeItem = container.querySelector(`.song-item[data-index="${currentIndex}"]`);
+
+    // 如果未渲染（在无限滚动后面），则需要处理
+    if (!activeItem && currentScrollState && currentScrollState.containerId === containerId) {
+        // 如果目标索引超出了当前渲染范围，强制渲染到那个位置
+        if (currentIndex >= currentScrollState.renderedCount) {
+            const { songs, renderedCount, playlistForPlayback } = currentScrollState;
+            // 确保我们要渲染的范围是有效的
+            if (renderedCount < songs.length) {
+                const neededBatch = songs.slice(renderedCount, currentIndex + 20); // 多渲染一点
+                renderSongItems(neededBatch, renderedCount, container, playlistForPlayback);
+                currentScrollState.renderedCount += neededBatch.length;
+                activeItem = container.querySelector(`.song-item[data-index="${currentIndex}"]`);
             }
         }
+    }
 
-        if (activeItem) {
-            activeItem.classList.add('active');
-            activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+    if (activeItem) {
+        activeItem.classList.add('active');
+        activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
 

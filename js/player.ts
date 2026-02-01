@@ -11,7 +11,9 @@ import * as ui from './ui';
 let currentPlaylist: Song[] = [];
 let currentIndex: number = -1;
 let isPlaying: boolean = false;
-const audioPlayer: HTMLAudioElement = new Audio();
+// NOTE: 使用 DOM 中的 audio 元素，而非创建新的 Audio 对象
+// 延迟初始化，在 DOMContentLoaded 后获取
+let audioPlayer: HTMLAudioElement;
 let playMode: PlayMode = 'loop';
 let playHistory: number[] = [];
 let historyPosition: number = -1;
@@ -19,13 +21,61 @@ let lastActiveContainer: string = 'searchResults';
 let currentLyrics: LyricLine[] = []; // NOTE: 存储当前歌词用于实时更新
 let currentPlayRequestId = 0; // 防止播放请求竞态条件
 let playHistorySongs: Song[] = []; // NOTE: 存储播放历史歌曲对象，避免索引失效
-let savedVolume: number = 0.8; // 保存用户设置的音量
+let savedVolume: number = loadSavedVolume(); // 从 localStorage 恢复音量
 let isFading: boolean = false; // NOTE: 防止淡入淡出重入
+
+// --- Volume Persistence ---
+
+/**
+ * 从 localStorage 加载保存的音量
+ */
+function loadSavedVolume(): number {
+    try {
+        const saved = localStorage.getItem('musicPlayerVolume');
+        if (saved !== null) {
+            const vol = parseFloat(saved);
+            if (isFinite(vol) && vol >= 0 && vol <= 1) return vol;
+        }
+    } catch { /* ignore */ }
+    return 0.8;
+}
+
+/**
+ * 保存音量到 localStorage
+ */
+function persistVolume(volume: number): void {
+    try {
+        localStorage.setItem('musicPlayerVolume', String(volume));
+    } catch { /* ignore */ }
+}
 
 // --- Playlist & Favorites State ---
 
 let playlistStorage = new Map<string, PlaylistData>();
 let playlistCounter: number = 0;
+
+/**
+ * 初始化播放器
+ * NOTE: 必须在 DOM 加载完成后调用
+ */
+export function initPlayer(): void {
+    const domAudio = document.getElementById('audioPlayer') as HTMLAudioElement;
+    if (domAudio) {
+        audioPlayer = domAudio;
+    } else {
+        audioPlayer = new Audio();
+    }
+
+    // 恢复音量
+    audioPlayer.volume = savedVolume;
+    const volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
+    if (volumeSlider) {
+        volumeSlider.value = String(Math.round(savedVolume * 100));
+    }
+
+    // 绑定音频事件
+    bindAudioEvents();
+}
 
 /**
  * 更新 Media Session 元数据
@@ -74,7 +124,15 @@ function updateMediaSession(song: Song, coverUrl: string): void {
  * NOTE: 切歌时平滑过渡，提升用户体验
  */
 async function fadeOut(): Promise<void> {
-    if (!audioPlayer.src || audioPlayer.paused || isFading) return;
+    if (!audioPlayer || !audioPlayer.src || audioPlayer.paused) return;
+
+    // NOTE: 如果正在淡入淡出，强制停止
+    if (isFading) {
+        audioPlayer.pause();
+        audioPlayer.volume = 0;
+        isFading = false;
+        return;
+    }
 
     isFading = true;
     // NOTE: 只在音量正常时保存，避免保存中间状态
@@ -151,8 +209,12 @@ export async function playSong(
             playHistory = playHistory.slice(0, historyPosition + 1);
             playHistorySongs = playHistorySongs.slice(0, historyPosition + 1);
         }
-        playHistory.push(index);
-        playHistorySongs.push(song);
+        // NOTE: 去重 - 如果最近一首是同一首歌，不重复添加
+        const lastSong = playHistorySongs[playHistorySongs.length - 1];
+        if (!lastSong || lastSong.id !== song.id || lastSong.source !== song.source) {
+            playHistory.push(index);
+            playHistorySongs.push(song);
+        }
         historyPosition = playHistory.length - 1;
         // NOTE: 持久化播放历史
         savePlayHistoryToStorage();
@@ -308,7 +370,14 @@ export function nextSong(): void {
     if (currentPlaylist.length === 0) return;
     let newIndex: number;
     if (playMode === 'random') {
-        newIndex = Math.floor(Math.random() * currentPlaylist.length);
+        if (currentPlaylist.length === 1) {
+            newIndex = 0;
+        } else {
+            // NOTE: 确保不会随机到当前同一首歌
+            do {
+                newIndex = Math.floor(Math.random() * currentPlaylist.length);
+            } while (newIndex === currentIndex);
+        }
     } else {
         newIndex = (currentIndex + 1) % currentPlaylist.length;
     }
@@ -352,7 +421,8 @@ export function togglePlay(): void {
 export function setVolume(value: string): void {
     const volume = parseInt(value, 10) / 100;
     audioPlayer.volume = volume;
-    savedVolume = volume; // NOTE: 同步更新保存的音量
+    savedVolume = volume;
+    persistVolume(volume); // NOTE: 持久化音量设置
 }
 
 export function seekTo(event: MouseEvent): void {
@@ -637,6 +707,9 @@ function savePlaylistsToStorage(): void {
     }
 }
 
+// NOTE: 音频事件监听器抽取为函数，在 initPlayer 中调用
+function bindAudioEvents(): void {
+
 // NOTE: 监听音频加载错误，提供详细诊断信息
 audioPlayer.addEventListener('error', _e => {
     const error = audioPlayer.error;
@@ -675,7 +748,11 @@ audioPlayer.addEventListener('pause', () => {
 
 audioPlayer.addEventListener('ended', () => {
     if (playMode === 'single') {
-        playSong(currentIndex, currentPlaylist, lastActiveContainer);
+        // NOTE: 单曲循环直接重置播放位置，无需重新加载资源
+        audioPlayer.currentTime = 0;
+        audioPlayer.play().catch(err => {
+            console.warn('单曲循环播放失败:', err);
+        });
     } else {
         nextSong();
     }
@@ -699,11 +776,33 @@ audioPlayer.addEventListener('loadedmetadata', () => {
             const song = getCurrentSong();
             if (song) {
                 logger.warn(`检测到可能的试听版本 (${Math.round(audioPlayer.duration)}秒): ${song.name}`);
-                ui.showNotification(`当前播放的可能是试听版本 (${Math.round(audioPlayer.duration)}秒)，VIP歌曲完整版需要会员`, 'warning');
+                ui.showNotification(`检测到试听版本，正在尝试从其他源获取完整版...`, 'warning');
+
+                // NOTE: 自动尝试从其他源获取完整版本
+                const quality = (document.getElementById('qualitySelect') as HTMLSelectElement)?.value || '320';
+                api.tryGetFullVersionFromOtherSources(song, quality).then(result => {
+                    if (result && result.url) {
+                        logger.info('从其他源找到完整版本，自动切换');
+                        ui.showNotification('已找到完整版本，正在切换...', 'success');
+                        // 保存当前播放位置
+                        const currentTime = audioPlayer.currentTime;
+                        // 切换到新 URL
+                        audioPlayer.src = result.url;
+                        audioPlayer.currentTime = Math.min(currentTime, 10); // 从相近位置继续
+                        audioPlayer.play().catch(e => logger.warn('切换完整版播放失败:', e));
+                    } else {
+                        ui.showNotification(`当前播放的是试听版本 (${Math.round(audioPlayer.duration)}秒)`, 'warning');
+                    }
+                }).catch(e => {
+                    logger.warn('跨源搜索失败:', e);
+                    ui.showNotification(`当前播放的是试听版本 (${Math.round(audioPlayer.duration)}秒)`, 'warning');
+                });
             }
         }
     }
 });
+
+} // end bindAudioEvents
 
 /**
  * 解析 LRC 格式歌词

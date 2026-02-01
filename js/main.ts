@@ -5,7 +5,7 @@
 import * as api from './api';
 import * as ui from './ui';
 import * as player from './player';
-import { debounce, getElement } from './utils';
+import { getElement } from './utils';
 import { MusicError } from './types';
 
 // --- 移动端页面切换功能（必须在模块顶层定义，供 HTML onclick 使用）---
@@ -91,6 +91,7 @@ function switchTab(tabName: string): void {
 function initializeApp(): void {
     console.log('云音乐 App 初始化...');
     ui.init();
+    player.initPlayer(); // NOTE: 初始化播放器，绑定 DOM 音频元素
 
     // NOTE: 注册 Service Worker 实现 PWA 功能
     registerServiceWorker();
@@ -135,12 +136,11 @@ function bindEventListeners(): void {
         searchBtn.addEventListener('click', handleSearch);
     }
 
-    // NOTE: 搜索输入框回车搜索，添加防抖
+    // NOTE: 搜索输入框回车立即搜索（不使用防抖，用户按回车就是要立即搜索）
     if (searchInput) {
-        const debouncedSearch = debounce(handleSearch, 300);
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                debouncedSearch();
+                handleSearch();
             }
         });
     }
@@ -155,8 +155,8 @@ function bindEventListeners(): void {
 
     // Player controls
     const playBtn = getElement('#playBtn');
-    const prevBtn = getElement('.player-controls .control-btn.small:nth-child(2)');
-    const nextBtn = getElement('.player-controls .control-btn.small:nth-child(4)');
+    const prevBtn = getElement('#prevBtn');
+    const nextBtn = getElement('#nextBtn');
     const playModeBtn = getElement('#playModeBtn');
     const volumeSlider = getElement<HTMLInputElement>('#volumeSlider');
     const progressBar = getElement('.progress-bar');
@@ -553,6 +553,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.innerWidth <= 768) {
         switchMobilePage(0);
     }
+
+    // NOTE: 监听窗口大小变化，自动切换移动端/桌面端布局
+    window.addEventListener('resize', () => {
+        const mainContainer = document.querySelector('.main-container') as HTMLElement;
+        if (window.innerWidth <= 768) {
+            switchMobilePage(currentMobilePage);
+        } else if (mainContainer) {
+            // 桌面端清除移动端 transform
+            mainContainer.style.transform = '';
+        }
+    });
 });
 
 function handleSwipe(): void {

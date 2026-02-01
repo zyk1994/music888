@@ -1,5 +1,8 @@
 const fetch = require('node-fetch');
 
+// NOTE: 上游请求超时时间 (毫秒)
+const UPSTREAM_TIMEOUT = 30000;
+
 // NOTE: 白名单域名列表，只允许代理到这些可信域名
 const ALLOWED_HOSTS = [
     // 音乐 API 源
@@ -64,6 +67,15 @@ function isUrlAllowed(url) {
 }
 
 module.exports = async (req, res) => {
+    // NOTE: 处理 CORS 预检请求
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Max-Age', '86400');
+        return res.status(204).end();
+    }
+
     const url = req.query.url;
     if (!url) {
         return res.status(400).json({ error: 'URL parameter is required' });
@@ -76,13 +88,17 @@ module.exports = async (req, res) => {
         return res.status(403).json({ error: 'URL not allowed' });
     }
 
+    // NOTE: 创建超时控制器
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT);
+
     try {
         const parsedUrl = new URL(decodedUrl);
 
         // NOTE: 根据目标域名动态设置 Referer 和其他请求头
         let referer = 'https://music.163.com/';
         let extraHeaders = {};
-        
+
         if (parsedUrl.hostname.includes('gdstudio.xyz')) {
             // GDStudio API 需要特殊的请求头
             referer = 'https://music-api.gdstudio.xyz/';
@@ -112,8 +128,11 @@ module.exports = async (req, res) => {
                 'Origin': referer.replace(/\/$/, ''),
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 ...extraHeaders
-            }
+            },
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             console.error(`Proxy upstream error: ${response.status} for ${decodedUrl.substring(0, 100)}`);
@@ -145,6 +164,14 @@ module.exports = async (req, res) => {
         response.body.pipe(res);
 
     } catch (error) {
+        clearTimeout(timeoutId);
+
+        // NOTE: 区分超时错误和其他错误
+        if (error.name === 'AbortError') {
+            console.error('Proxy timeout:', decodedUrl.substring(0, 100));
+            return res.status(504).json({ error: 'Request timeout' });
+        }
+
         console.error('Proxy error:', error.message);
         // NOTE: 不向客户端暴露内部错误详情，只返回通用错误消息
         res.status(500).json({ error: 'Failed to proxy request' });

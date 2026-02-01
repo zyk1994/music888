@@ -57,6 +57,55 @@
 
 /* === Mobile Devices === */
 @media (max-width: 768px) {
+    /* NOTE: 防止移动端页面滚动时出现水平滚动条 */
+    body {
+        overflow-x: hidden;
+    }
+
+    /* NOTE: 移动端隐藏页脚，因为使用滑动页面布局 */
+    .app-footer {
+        display: none;
+    }
+
+    /* NOTE: 重置桌面端 grid 布局为移动端 flex 布局 */
+    .main-container {
+        display: flex !important;
+        grid-template-columns: unset !important;
+        padding: 50px 0 0 0;
+        /* Add padding for search bar */
+        height: calc(100vh - 50px);
+        overflow: hidden;
+        width: 100%;
+        /* NOTE: 不再使用 300% 宽度，而是让子元素各占 100vw */
+        flex-direction: row;
+        transition: transform 0.3s ease-out;
+        align-items: stretch;
+        gap: 0 !important;
+        /* NOTE: 移除 gap，避免破坏 100vw 对齐 */
+        max-width: none;
+    }
+
+    .content-section,
+    .player-section,
+    .lyrics-section {
+        width: 100vw;
+        min-width: 100vw;
+        /* NOTE: 确保最小宽度也是 100vw */
+        max-width: 100vw;
+        height: calc(100vh - 120px);
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        background: transparent;
+        overflow-y: auto;
+        flex-shrink: 0;
+        padding: 15px;
+        padding-bottom: 80px;
+        /* Space for indicators */
+        box-sizing: border-box;
+        /* NOTE: 确保 padding 包含在 100vw 内 */
+    }
+
     .navbar {
         padding: 10px 0;
     }
@@ -97,34 +146,6 @@
         max-width: 100px;
         font-size: 12px;
         padding: 10px 12px;
-    }
-
-    .main-container {
-        display: flex;
-        padding: 50px 0 0 0;
-        /* Add padding for search bar */
-        height: auto;
-        overflow-x: hidden;
-        width: 300%;
-        /* 3 pages width */
-        flex-direction: row;
-        transition: transform 0.3s ease-out;
-        align-items: stretch;
-    }
-
-    .content-section,
-    .player-section,
-    .lyrics-section {
-        width: 100vw;
-        height: calc(100vh - 120px);
-        margin: 0;
-        border-radius: 0;
-        border: none;
-        background: transparent;
-        overflow-y: auto;
-        flex-shrink: 0;
-        padding-bottom: 80px;
-        /* Space for indicators */
     }
 
     /* Show page indicators on mobile */
