@@ -73,8 +73,8 @@
             </div>
             <div class="search-container">
                 <div class="search-wrapper">
-                    <input type="text" class="search-input" placeholder="搜索音乐、歌手、专辑..." id="searchInput">
-                    <select class="source-select" id="sourceSelect">
+                    <input type="text" class="search-input" placeholder="搜索音乐、歌手、专辑..." id="searchInput" aria-label="搜索音乐">
+                    <select class="source-select" id="sourceSelect" aria-label="选择音乐源">
                         <option value="netease">网易云音乐</option>
                         <option value="kuwo">酷我音乐</option>
                         <option value="joox">JOOX</option>
@@ -89,7 +89,7 @@
                         <option value="qobuz">Qobuz</option>
                         <option value="deezer">Deezer</option>
                     </select>
-                    <button class="search-btn">
+                    <button class="search-btn" aria-label="搜索">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
@@ -256,12 +256,12 @@
                     <button class="control-btn small" id="nextBtn" aria-label="下一曲">
                         <i class="fas fa-step-forward"></i>
                     </button>
-                    <button class="control-btn small" id="playModeBtn" title="列表循环">
+                    <button class="control-btn small" id="playModeBtn" title="列表循环" aria-label="播放模式">
                         <i class="fas fa-repeat"></i>
                     </button>
                 </div>
                 <div class="progress-container">
-                    <div class="progress-bar">
+                    <div class="progress-bar" role="slider" aria-label="播放进度" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" tabindex="0">
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
                     <div class="time-info">
@@ -271,10 +271,10 @@
                 </div>
                 <div class="volume-container">
                     <i class="fas fa-volume-up volume-icon"></i>
-                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80" aria-label="音量调节">
                 </div>
                 <div class="quality-download-container">
-                    <select class="quality-select" id="qualitySelect">
+                    <select class="quality-select" id="qualitySelect" aria-label="音质选择">
                         <option value="128">标准 128K</option>
                         <option value="192">较高 192K</option>
                         <option value="320" selected>高品质 320K</option>

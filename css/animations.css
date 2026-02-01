@@ -115,3 +115,28 @@
 .control-btn.play-btn:active {
     animation: bounce 0.2s ease;
 }
+
+/* === 减少动画偏好支持 === */
+@media (prefers-reduced-motion: reduce) {
+    .bg-animation {
+        animation: none;
+        background: linear-gradient(-45deg, #ee7752, #e73c7e);
+    }
+
+    .song-item {
+        animation: none;
+        opacity: 1;
+    }
+
+    .loading i {
+        animation: none;
+    }
+
+    .control-btn.play-btn:active {
+        animation: none;
+    }
+
+    * {
+        transition-duration: 0.01ms !important;
+    }
+}

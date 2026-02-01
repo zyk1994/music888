@@ -145,13 +145,13 @@ async function testAPI(api: ApiSource): Promise<boolean> {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-            console.log(`  API 返回状态码: ${response.status}`);
+            logger.debug(`  API 返回状态码: ${response.status}`);
             return false;
         }
 
         const contentType = response.headers.get('content-type') || '';
         if (contentType.includes('text/html')) {
-            console.log(`  API 返回 HTML 而非 JSON`);
+            logger.debug(`  API 返回 HTML 而非 JSON`);
             return false;
         }
 
@@ -178,16 +178,16 @@ async function testAPI(api: ApiSource): Promise<boolean> {
             }
             const metingData = data as MetingErrorResponse;
             if (metingData.error) {
-                console.log(`  Meting API 返回错误: ${metingData.error}`);
+                logger.debug(`  Meting API 返回错误: ${metingData.error}`);
                 return false;
             }
             return typeof data === 'object' && data !== null;
         } catch {
-            console.log(`  API 响应不是有效 JSON: ${text.substring(0, 100)}`);
+            logger.debug(`  API 响应不是有效 JSON: ${text.substring(0, 100)}`);
             return false;
         }
     } catch (error) {
-        console.log(`  API 测试失败: ${error}`);
+        logger.debug(`  API 测试失败: ${error}`);
         return false;
     }
 }
@@ -196,17 +196,17 @@ async function testAPI(api: ApiSource): Promise<boolean> {
  * 查找可用的 API
  */
 export async function findWorkingAPI(): Promise<ApiDetectionResult> {
-    console.log('正在检测可用的 API...');
+    logger.debug('正在检测可用的 API...');
     for (const api of API_SOURCES) {
-        console.log(`测试 ${api.name}...`);
+        logger.debug(`测试 ${api.name}...`);
         const isWorking = await testAPI(api);
         if (isWorking) {
             currentAPI = api;
             if (api.type === 'gdstudio') markGDStudioApiAvailable();
-            console.log(`✅ ${api.name} 可用`);
+            logger.debug(`✅ ${api.name} 可用`);
             return { success: true, name: api.name };
         } else {
-            console.log(`❌ ${api.name} 不可用`);
+            logger.debug(`❌ ${api.name} 不可用`);
             // NOTE: GDStudio API 测试失败时立即标记，避免后续重复尝试
             if (api.type === 'gdstudio') markGDStudioApiUnavailable();
         }
@@ -250,7 +250,7 @@ export async function fetchWithRetry(
                 );
             }
         } catch (error) {
-            console.error(`Request failed (attempt ${i + 1}/${retries + 1}):`, error);
+            logger.error(`Request failed (attempt ${i + 1}/${retries + 1}):`, error);
             if (i === retries) {
                 if (error instanceof MusicError) {
                     throw error;
@@ -320,7 +320,7 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
             return data.url;
         }
     } catch (e) {
-        console.warn('GDStudio API 获取封面失败，尝试 Meting API:', e);
+        logger.warn('GDStudio API 获取封面失败，尝试 Meting API:', e);
     }
 
     // 2. 回退到 Meting API
@@ -331,7 +331,7 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
             return data.url || data.pic || '';
         }
     } catch (e) {
-        console.warn('Meting API 获取封面失败，尝试使用 CDN 构造:', e);
+        logger.warn('Meting API 获取封面失败，尝试使用 CDN 构造:', e);
     }
 
     // 3. 最后返回空字符串（CDN 构造需要 encrypt_id，无法仅从 pic_id 得到）
@@ -446,7 +446,7 @@ async function getSongUrlFromNecApi(songId: string, quality: string): Promise<So
                 };
             }
         } catch (e) {
-            console.warn(`NEC API (${necApi.name}) 获取 URL 失败:`, e);
+            logger.warn(`NEC API (${necApi.name}) 获取 URL 失败:`, e);
         }
     }
     return null;
@@ -463,7 +463,7 @@ async function getSongUrlFromSource(
 ): Promise<SongUrlResult | null> {
     // NOTE: 检查 GDStudio API 是否可用
     if (!isGDStudioApiAvailable()) {
-        console.log('GDStudio API 暂时不可用，跳过');
+        logger.debug('GDStudio API 暂时不可用，跳过');
         return null;
     }
 
@@ -486,7 +486,7 @@ async function getSongUrlFromSource(
             };
         }
     } catch (e) {
-        console.warn(`从 ${source} 获取 URL 失败:`, e);
+        logger.warn(`从 ${source} 获取 URL 失败:`, e);
         // 如果是 403 错误，标记 API 不可用
         if (e instanceof MusicError && e.message.includes('403')) {
             markGDStudioApiUnavailable();
@@ -582,7 +582,7 @@ async function searchSingleSource(
     source: string,
     songName: string,
     artistName: string,
-    quality: string
+    _quality: string
 ): Promise<SongUrlResult | null> {
     if (!isGDStudioApiAvailable()) return null;
 
@@ -642,12 +642,12 @@ async function searchSongFromOtherSources(
     quality: string
 ): Promise<SongUrlResult | null> {
     if (!isGDStudioApiAvailable()) {
-        console.log('GDStudio API 暂时不可用，跳过跨源搜索');
+        logger.debug('GDStudio API 暂时不可用，跳过跨源搜索');
         return null;
     }
 
     const sortedSources = getSortedFallbackSources(excludeSource);
-    console.log(`跨源搜索: "${songName}" 尝试源: ${sortedSources.join(', ')}`);
+    logger.debug(`跨源搜索: "${songName}" 尝试源: ${sortedSources.join(', ')}`);
 
     if (PREVIEW_DETECTION.PARALLEL_SEARCH) {
         // 并行搜索所有源
@@ -662,7 +662,7 @@ async function searchSongFromOtherSources(
         // 按源优先级返回第一个有效结果
         for (const { source, result } of results) {
             if (result) {
-                console.log(`从 ${source} 找到完整版本`);
+                logger.debug(`从 ${source} 找到完整版本`);
                 sourceSuccessCount.set(source, (sourceSuccessCount.get(source) || 0) + 1);
                 saveSourceStats();
                 return result;
@@ -674,7 +674,7 @@ async function searchSongFromOtherSources(
         for (const source of sortedSources) {
             const result = await searchSingleSource(source, songName, artistName, quality);
             if (result) {
-                console.log(`从 ${source} 找到完整版本`);
+                logger.debug(`从 ${source} 找到完整版本`);
                 sourceSuccessCount.set(source, (sourceSuccessCount.get(source) || 0) + 1);
                 saveSourceStats();
                 return result;
@@ -735,14 +735,14 @@ export async function tryGetFullVersionFromOtherSources(
 
     // 避免重复搜索
     if (crossSourceSearchInProgress.has(songKey)) {
-        console.log('跨源搜索已在进行中，跳过');
+        logger.debug('跨源搜索已在进行中，跳过');
         return null;
     }
 
     crossSourceSearchInProgress.add(songKey);
 
     try {
-        console.log('尝试从其他音乐源获取更优版本...');
+        logger.debug('尝试从其他音乐源获取更优版本...');
         const artistName = Array.isArray(song.artist) ? song.artist[0] : song.artist;
         const result = await searchSongFromOtherSources(
             song.name,
@@ -772,7 +772,7 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
     // 1. 第一优先级：尝试 UnblockNeteaseMusic 解锁（仅网易云）
     if (source === 'netease') {
         try {
-            console.log('优先尝试 NEC Unblock (match) 解锁...');
+            logger.debug('优先尝试 NEC Unblock (match) 解锁...');
             const matchResponse = await fetchWithRetry(
                 `${necUrl}/song/url/match?id=${song.id}&randomCNIP=true`
             );
@@ -794,14 +794,14 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
                 }
             }
         } catch (e) {
-            console.warn('NEC Unblock 请求失败:', e);
+            logger.warn('NEC Unblock 请求失败:', e);
         }
     }
 
     // 2. 第二优先级：尝试 GDStudio API（支持多音乐源）
     if (isGDStudioApiAvailable()) {
         try {
-            console.log(`尝试使用 GDStudio API (${source}) 获取音频 URL...`);
+            logger.debug(`尝试使用 GDStudio API (${source}) 获取音频 URL...`);
             const response = await fetchWithRetry(
                 `${gdstudioUrl}?types=url&source=${source}&id=${song.id}&br=${quality}`,
                 {},
@@ -828,7 +828,7 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
                 }
             }
         } catch (e) {
-            console.warn('GDStudio API 请求失败:', e);
+            logger.warn('GDStudio API 请求失败:', e);
             if (e instanceof MusicError && e.message.includes('403')) {
                 markGDStudioApiUnavailable();
             }
@@ -856,7 +856,7 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
                 candidates.push(result);
             }
         } catch (error) {
-            console.warn('NEC 常规接口失败:', error);
+            logger.warn('NEC 常规接口失败:', error);
         }
 
         // 3.5. 尝试备用 NEC API
@@ -882,22 +882,22 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
             candidates.push(urlResult);
         }
     } catch (e) {
-        console.warn('Meting API 请求失败:', e);
+        logger.warn('Meting API 请求失败:', e);
     }
 
     // 5. 等待预检测的跨源搜索结果（如果已启动）
     if (crossSourcePromise) {
-        console.log('等待跨源搜索结果...');
+        logger.debug('等待跨源搜索结果...');
         const crossSourceResult = await crossSourcePromise;
         if (crossSourceResult) {
-            console.log('跨源搜索找到完整版本');
+            logger.debug('跨源搜索找到完整版本');
             return crossSourceResult;
         }
     }
 
     // 6. 如果预检测未启动或失败，再次尝试跨源搜索
     if (!crossSourcePromise && candidates.length > 0) {
-        console.log('尝试跨源搜索更优版本...');
+        logger.debug('尝试跨源搜索更优版本...');
         const crossSourceResult = await searchSongFromOtherSources(
             song.name,
             artistName,
@@ -914,7 +914,7 @@ export async function getSongUrl(song: Song, quality: string): Promise<SongUrlRe
         return candidates[0];
     }
 
-    console.warn('所有方式均无法获取 URL');
+    logger.warn('所有方式均无法获取 URL');
     return { url: '', br: quality };
 }
 
@@ -930,18 +930,18 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
     // 1. 优先使用 NEC API（仅网易云，最稳定）
     if (source === 'netease') {
         try {
-            console.log('尝试 NEC API 获取歌词...');
+            logger.debug('尝试 NEC API 获取歌词...');
             const response = await fetchWithRetry(`${necUrl}/lyric?id=${song.id}`, {}, 1);
             const data: NeteaseLyricResponse = await response.json();
             if (data.code === 200 && data.lrc?.lyric) {
-                console.log('NEC API 获取歌词成功');
+                logger.debug('NEC API 获取歌词成功');
                 return {
                     lyric: data.lrc.lyric,
                     tlyric: data.tlyric?.lyric || undefined
                 };
             }
         } catch (error) {
-            console.warn('NEC API 获取歌词失败:', error);
+            logger.warn('NEC API 获取歌词失败:', error);
         }
     }
 
@@ -949,7 +949,7 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
     if (isGDStudioApiAvailable()) {
         const gdstudioUrl = getGDStudioApiUrl();
         try {
-            console.log('尝试 GDStudio API 获取歌词...');
+            logger.debug('尝试 GDStudio API 获取歌词...');
             const response = await fetchWithRetry(
                 `${gdstudioUrl}?types=lyric&source=${source}&id=${song.lyric_id || song.id}`,
                 {},
@@ -958,14 +958,14 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
             const data: GDStudioLyricResponse = await response.json();
             if (data?.lyric) {
                 markGDStudioApiAvailable();
-                console.log('GDStudio API 获取歌词成功');
+                logger.debug('GDStudio API 获取歌词成功');
                 return {
                     lyric: data.lyric,
                     tlyric: data.tlyric || undefined
                 };
             }
         } catch (e) {
-            console.warn('GDStudio API 获取歌词失败:', e);
+            logger.warn('GDStudio API 获取歌词失败:', e);
             if (e instanceof MusicError && e.message.includes('403')) {
                 markGDStudioApiUnavailable();
             }
@@ -973,7 +973,7 @@ export async function getLyrics(song: Song): Promise<LyricResult> {
     }
 
     // 3. 返回空歌词
-    console.log('无法获取歌词');
+    logger.debug('无法获取歌词');
     return { lyric: '', tlyric: undefined };
 }
 
@@ -1012,7 +1012,7 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
     // NOTE: 检查 GDStudio API 是否可用
     if (isGDStudioApiAvailable()) {
         try {
-            console.log(`使用 GDStudio API 搜索 (${source}): ${keyword}`);
+            logger.debug(`使用 GDStudio API 搜索 (${source}): ${keyword}`);
             const response = await fetchWithRetry(
                 `${gdstudioUrl}?types=search&source=${source}&name=${encodeURIComponent(keyword)}&count=30`,
                 {},
@@ -1034,7 +1034,7 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
 
             if (songs.length > 0) {
                 markGDStudioApiAvailable();
-                console.log(`GDStudio API 搜索成功，找到 ${songs.length} 首歌曲`);
+                logger.debug(`GDStudio API 搜索成功，找到 ${songs.length} 首歌曲`);
                 return songs.map(song => ({
                     id: song.id,
                     name: song.name,
@@ -1047,13 +1047,13 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
                 }));
             }
         } catch (e) {
-            console.warn('GDStudio API 搜索失败，回退到 NEC API:', e);
+            logger.warn('GDStudio API 搜索失败，回退到 NEC API:', e);
             if (e instanceof MusicError && e.message.includes('403')) {
                 markGDStudioApiUnavailable();
             }
         }
     } else {
-        console.log('GDStudio API 暂时不可用，直接使用 NEC API');
+        logger.debug('GDStudio API 暂时不可用，直接使用 NEC API');
     }
 
     // 2. 回退到 NEC API（仅支持网易云）
@@ -1099,7 +1099,7 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
                         }
                     }
                 } catch (detailError) {
-                    console.warn('获取歌曲详情失败，使用基本信息:', detailError);
+                    logger.warn('获取歌曲详情失败，使用基本信息:', detailError);
                 }
 
                 // 如果详情获取失败，回退到基本信息
@@ -1119,7 +1119,7 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
                 });
             }
         } catch (error) {
-            console.error('NEC API 搜索失败:', error);
+            logger.error('NEC API 搜索失败:', error);
             throw new MusicError(
                 MusicErrorType.API,
                 `NEC API search failed: ${error}`,
@@ -1151,15 +1151,15 @@ export async function exploreRadarAPI(): Promise<Song[]> {
         try {
             const songs = await searchMusicAPI(keyword, 'netease');
             if (songs && songs.length > 0) {
-                console.log(`探索雷达成功获取 ${songs.length} 首歌曲 (关键词: ${keyword})`);
+                logger.debug(`探索雷达成功获取 ${songs.length} 首歌曲 (关键词: ${keyword})`);
                 return songs;
             }
         } catch (error) {
-            console.warn(`探索雷达请求失败 (关键词: ${keyword}):`, error);
+            logger.warn(`探索雷达请求失败 (关键词: ${keyword}):`, error);
         }
     }
 
-    console.error('探索雷达: 所有关键词尝试均失败');
+    logger.error('探索雷达: 所有关键词尝试均失败');
     return [];
 }
 
@@ -1169,7 +1169,7 @@ export async function exploreRadarAPI(): Promise<Song[]> {
 export async function parsePlaylistAPI(playlistUrlOrId: string): Promise<PlaylistParseResult> {
     let playlistId = playlistUrlOrId.trim();
 
-    console.log('开始解析歌单:', playlistUrlOrId);
+    logger.debug('开始解析歌单:', playlistUrlOrId);
 
     // 支持多种URL格式
     if (playlistId.includes('music.163.com') || playlistId.includes('163cn.tv')) {

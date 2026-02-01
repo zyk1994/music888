@@ -21,8 +21,8 @@
     /* 文本颜色 */
     --color-text: #fff;
     --color-text-secondary: rgba(255, 255, 255, 0.7);
-    --color-text-tertiary: rgba(255, 255, 255, 0.5);
-    --color-text-muted: rgba(255, 255, 255, 0.5);
+    --color-text-tertiary: rgba(255, 255, 255, 0.65);
+    --color-text-muted: rgba(255, 255, 255, 0.6);
 
     /* 状态颜色 */
     --color-success: #4CAF50;
