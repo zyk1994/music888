@@ -137,7 +137,6 @@ const ALLOWED_HOSTS = [
     'meting.qjqq.cn',
     'w7z.indevs.in',
     'tktok.de5.net',
-    'nec8.de5.net',
     'netease-cloud-music-api-five-roan.vercel.app',
     // QQ 音乐
     'y.qq.com',
@@ -209,7 +208,6 @@ function isUrlAllowed(url) {
 // NOTE: 仅对 NEC API 追加 cookie 查询参数（部分部署只识别 query 方式）
 const NETEASE_COOKIE_QUERY_HOSTS = [
     'w7z.indevs.in',
-    'nec8.de5.net',
     'netease-cloud-music-api-five-roan.vercel.app',
 ];
 

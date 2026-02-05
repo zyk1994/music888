@@ -16,7 +16,7 @@ export const IS_PRODUCTION = import.meta.env.PROD;
 /**
  * NCM Docker 部署地址（统一 NEC API 来源）
  */
-export const NCM_BASE_URL = 'https://nec8.de5.net';
+export const NCM_BASE_URL = 'https://w7z.indevs.in';
 
 // ============================================
 // 错误缓冲区（用于未来远程上报）
