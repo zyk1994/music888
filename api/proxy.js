@@ -89,8 +89,9 @@ const ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
     // Vercel 预览和生产
     /\.vercel\.app$/,
-    // 自定义域名（请根据实际情况修改）
-    // 'https://your-domain.com',
+    // 自定义域名
+    'https://music.weny888.com',
+    'http://music.weny888.com',
 ];
 
 /**
@@ -136,6 +137,7 @@ const ALLOWED_HOSTS = [
     'meting.qjqq.cn',
     'w7z.indevs.in',
     'tktok.de5.net',
+    'nec8.de5.net',
     'netease-cloud-music-api-five-roan.vercel.app',
     // QQ 音乐
     'y.qq.com',
@@ -207,6 +209,7 @@ function isUrlAllowed(url) {
 // NOTE: 仅对 NEC API 追加 cookie 查询参数（部分部署只识别 query 方式）
 const NETEASE_COOKIE_QUERY_HOSTS = [
     'w7z.indevs.in',
+    'nec8.de5.net',
     'netease-cloud-music-api-five-roan.vercel.app',
 ];
 
@@ -301,6 +304,9 @@ module.exports = async (req, res) => {
                 'Sec-Fetch-Dest': 'empty',
                 'Sec-Fetch-Mode': 'cors',
                 'Sec-Fetch-Site': 'same-site',
+                'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"'
             };
         } else if (parsedUrl.hostname.includes('qq.com')) {
             referer = 'https://y.qq.com/';
