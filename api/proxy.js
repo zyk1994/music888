@@ -318,6 +318,8 @@ module.exports = async (req, res) => {
             referer = 'https://www.kuwo.cn/';
         } else if (parsedUrl.hostname.includes('joox.com')) {
             referer = 'https://www.joox.com/';
+        } else if (parsedUrl.hostname.includes('api.i-meto.com')) {
+            referer = 'https://api.i-meto.com/';
         } else if (parsedUrl.hostname.includes('ximalaya.com') || parsedUrl.hostname.includes('xmcdn.com')) {
             referer = 'https://www.ximalaya.com/';
         }

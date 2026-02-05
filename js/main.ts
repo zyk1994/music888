@@ -144,9 +144,9 @@ function bindEventListeners(): void {
         searchBtn.addEventListener('click', handleSearch);
     }
 
-    // NOTE: 搜索输入框回车立即搜索（不使用防抖，用户按回车就是要立即搜索）
+    // NOTE: 搜索输入框回车立即搜索（使用 keydown 以补获所有输入法的 Enter 事件）
     if (searchInput) {
-        searchInput.addEventListener('keypress', e => {
+        searchInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 handleSearch();
             }
@@ -573,7 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // NOTE: 初始化移动端页面指示器
     if (window.innerWidth <= 768) {
-        switchMobilePage(0);
+        // NOTE: 等待 DOM 渲染完成后再执行跳转
+        setTimeout(() => switchMobilePage(0), 100);
     }
 
     // NOTE: 监听窗口大小变化，自动切换移动端/桌面端布局

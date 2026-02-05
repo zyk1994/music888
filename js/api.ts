@@ -352,28 +352,32 @@ export async function getAlbumCoverUrl(song: Song, size: number = 300): Promise<
  * @param knownDuration 已知歌曲时长（毫秒，可选，来自搜索结果元数据）
  */
 function isProbablyPreview(url: string, size?: number, knownDuration?: number): boolean {
+    // 维度 0: URL 为空或无效
+    if (!url) return true;
+
     // 维度 1: URL 中明确的试听标记
-    const previewPatterns = [/preview/i, /trial/i, /sample/i, /freepart/i, /clip/i];
+    const previewPatterns = [/preview/i, /trial/i, /sample/i, /freepart/i, /clip/i, /m-trial/i];
     if (previewPatterns.some(pattern => pattern.test(url))) {
         return true;
     }
 
     // 维度 2: 文件大小异常小（低于阈值，可能是试听片段）
+    // NOTE: 25-65秒的 MP3 大小通常在 400KB - 1.2MB 之间
     if (size && size > 0 && size < PREVIEW_DETECTION.MIN_FILE_SIZE) {
-        logger.debug(`文件大小异常小 (${Math.round(size / 1024)}KB)，可能是试听版本`);
+        logger.debug(`文件大小异常小 (${Math.round(size / 1024)}KB)，判定为试听版本`);
         return true;
     }
 
     // 维度 3: 如果有已知时长（来自 API 元数据），判断是否在试听区间
     if (knownDuration && knownDuration > 0) {
         const durationSec = knownDuration / 1000;
+        // 如果时长非常接近 30s/45s/60s，且 URL/Size 有嫌疑
         if (durationSec >= PREVIEW_DETECTION.MIN_DURATION && durationSec <= PREVIEW_DETECTION.MAX_DURATION) {
-            // 检查是否接近典型试听时长（30秒/60秒）
             const isNearTypical = PREVIEW_DETECTION.TYPICAL_DURATIONS.some(
                 typical => Math.abs(durationSec - typical) <= PREVIEW_DETECTION.DURATION_TOLERANCE
             );
             if (isNearTypical) {
-                logger.debug(`已知时长 ${durationSec.toFixed(1)}s 接近典型试听时长`);
+                logger.debug(`元数据时长 ${durationSec.toFixed(1)}s 为典型试听时长`);
                 return true;
             }
         }
