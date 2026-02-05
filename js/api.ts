@@ -716,6 +716,52 @@ function saveSourceStats(): void {
 loadSourceStats();
 
 /**
+ * 当检测到试听版本时，优先再次尝试 NEC Unblock 以获取完整版本（仅网易云）
+ * NOTE:
+ * - 不依赖 GDStudio（线上可能被 403 风控）
+ * - 通过多次请求 + 低到高码率尝试，提升命中非试听 URL 的概率
+ * - 仍然不保证 100% 可用（无 Cookie 情况下完全取决于上游/解锁服务能力）
+ */
+export async function tryGetFullVersionFromNeteaseUnblock(song: Song, quality: string): Promise<SongUrlResult | null> {
+    if ((song.source || 'netease') !== 'netease') return null;
+
+    const necUrl = getNecApiUrl();
+
+    // NOTE: 命中概率策略：先低码率（更容易有可用源），再尝试用户选择码率
+    const brQueue = Array.from(
+        new Set([
+            '128',
+            '192',
+            '320',
+            quality,
+        ])
+    );
+
+    // NOTE: 多次尝试，绕过部分服务端缓存/抽样结果
+    for (let attempt = 0; attempt < 2; attempt++) {
+        for (const br of brQueue) {
+            try {
+                const url = `${necUrl}/song/url/match?id=${song.id}&br=${encodeURIComponent(br)}&randomCNIP=true&t=${Date.now()}`;
+                const response = await fetchWithRetry(url, {}, 0);
+                const data: NeteaseSongUrlResponse = await response.json();
+
+                if (data.code === 200 && data.data?.[0]?.url) {
+                    return {
+                        url: data.data[0].url,
+                        br: String(data.data[0].br || br || quality),
+                        size: data.data[0].size,
+                    };
+                }
+            } catch (e) {
+                logger.debug('NEC Unblock 二次尝试失败:', e);
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * 当检测到试听版本时，尝试从其他源获取完整版本
  * NOTE: 由 player.ts 在 loadedmetadata 检测到试听时调用
  */

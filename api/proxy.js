@@ -9,6 +9,13 @@ const MAX_URL_LENGTH = 2048;
 // NOTE: 可选的网易云 VIP Cookie（用于获取完整音源）
 const NETEASE_VIP_COOKIE = process.env.NETEASE_VIP_COOKIE || '';
 
+// NOTE: 额外允许代理的上游域名（逗号分隔），用于紧急切换/扩展，不必改代码
+// 例如：EXTRA_ALLOWED_HOSTS="example.com,api.example.net"
+const EXTRA_ALLOWED_HOSTS = String(process.env.EXTRA_ALLOWED_HOSTS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
 // ============================================
 // 速率限制配置
 // ============================================
@@ -163,7 +170,7 @@ const ALLOWED_HOSTS = [
     'ximalaya.com',
     'fdfs.xmcdn.com',
     'aod.cos.tx.xmcdn.com'
-];
+].concat(EXTRA_ALLOWED_HOSTS);
 
 // NOTE: 仅对网易云相关域名附加 VIP Cookie
 const NETEASE_COOKIE_HOSTS = [
@@ -283,13 +290,17 @@ module.exports = async (req, res) => {
         const requestUrl = parsedUrl.toString();
 
         if (parsedUrl.hostname.includes('gdstudio.xyz')) {
-            // GDStudio API 需要特殊的请求头
+            // GDStudio API 需要特殊的请求头（部分场景还需要更像浏览器的 Sec-Fetch 系列头）
             referer = 'https://music-api.gdstudio.xyz/';
             extraHeaders = {
                 'Accept': 'application/json, text/plain, */*',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache',
+                // NOTE: 增强反爬兼容性
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-site',
             };
         } else if (parsedUrl.hostname.includes('qq.com')) {
             referer = 'https://y.qq.com/';
@@ -310,6 +321,8 @@ module.exports = async (req, res) => {
                 'Referer': referer,
                 'Origin': referer.replace(/\/$/, ''),
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                // NOTE: 某些上游会根据 Accept 判断返回内容，缺省可能触发拦截
+                'Accept': 'application/json, text/plain, */*',
                 ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
                 ...extraHeaders
             },

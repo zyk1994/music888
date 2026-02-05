@@ -817,7 +817,10 @@ function bindAudioEvents(): void {
                 const quality = (document.getElementById('qualitySelect') as HTMLSelectElement)?.value || '320';
                 const currentRequestId = currentPlayRequestId; // 保存当前请求ID
 
-                api.tryGetFullVersionFromOtherSources(song, quality)
+                // NOTE: 无 Cookie 场景下，优先再次尝试 NEC Unblock（不依赖 GDStudio 搜索）
+                api.tryGetFullVersionFromNeteaseUnblock(song, quality)
+                    .catch(() => null)
+                    .then(unblockResult => unblockResult || api.tryGetFullVersionFromOtherSources(song, quality))
                     .then(result => {
                         // 检查是否还是同一首歌（防止用户已切歌）
                         if (currentRequestId !== currentPlayRequestId) {
@@ -826,7 +829,7 @@ function bindAudioEvents(): void {
                         }
 
                         if (result && result.url) {
-                            logger.info('从其他源找到完整版本，自动切换');
+                            logger.info('找到可能的完整版本，自动切换');
 
                             // 保存当前播放状态
                             const wasPlaying = !audioPlayer.paused;
