@@ -50,13 +50,13 @@ const API_SOURCES: ApiSource[] = [
         supportsSearch: true,
     },
     {
-        name: 'Meting API (Pro)',
-        url: 'https://tktok.de5.net/api',
+        name: 'Meting API (i-meto)',
+        url: 'https://api.i-meto.com/meting/api',
         type: 'meting',
-        supportsSearch: false,
+        supportsSearch: true,
     },
     {
-        name: 'Meting API 1',
+        name: 'Meting API (injahow)',
         url: 'https://api.injahow.cn/meting',
         type: 'meting',
         supportsSearch: false,
@@ -126,6 +126,9 @@ async function testAPI(api: ApiSource): Promise<boolean> {
         } else if (api.type === 'gdstudio') {
             // GDStudio API 使用搜索接口测试
             testUrl = `${api.url}?types=search&source=netease&name=test&count=1`;
+        } else if (api.type === 'meting' && api.supportsSearch) {
+            // Meting API 搜索接口测试 (i-meto 等)
+            testUrl = `${api.url}?type=search&id=test`;
         } else {
             testUrl = `${api.url}/?type=playlist&id=60198`;
         }
@@ -1166,6 +1169,31 @@ export async function searchMusicAPI(keyword: string, source: string = 'netease'
                 '搜索失败，请稍后重试',
                 error instanceof Error ? error : undefined
             );
+        }
+    }
+
+    // 3. 回退到备用 Meting API (如果有支持搜索的)
+    const metingSearchApi = API_SOURCES.find(api => api.type === 'meting' && api.supportsSearch);
+    if (metingSearchApi) {
+        try {
+            logger.debug(`使用 Meting API 搜索回退: ${keyword}`);
+            const response = await fetchWithRetry(`${metingSearchApi.url}?type=search&id=${encodeURIComponent(keyword)}`);
+            const data: MetingSong[] = await response.json();
+
+            if (Array.isArray(data) && data.length > 0) {
+                return data.map(song => ({
+                    id: song.url_id || song.id,
+                    name: song.name,
+                    artist: Array.isArray(song.artist) ? song.artist : [song.artist],
+                    album: song.album || '',
+                    pic_id: song.pic_id || '',
+                    pic_url: song.pic || '',
+                    lyric_id: song.lyric_id || song.id,
+                    source: song.source || 'netease',
+                }));
+            }
+        } catch (error) {
+            logger.warn('Meting API 搜索回退失败:', error);
         }
     }
 

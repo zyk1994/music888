@@ -134,9 +134,9 @@ const ALLOWED_HOSTS = [
     // 音乐 API 源
     'music-api.gdstudio.xyz',
     'api.injahow.cn',
-    'meting.qjqq.cn',
+    'api.i-meto.com',
     'w7z.indevs.in',
-    'tktok.de5.net',
+    'netease-cloud-music-api-psi-three.vercel.app',
     'netease-cloud-music-api-five-roan.vercel.app',
     // QQ 音乐
     'y.qq.com',
@@ -176,7 +176,7 @@ const ALLOWED_HOSTS = [
 // NOTE: 仅对网易云相关域名附加 VIP Cookie
 const NETEASE_COOKIE_HOSTS = [
     'music.163.com',
-    'interface.music.163.com',
+    'netease-cloud-music-api-psi-three.vercel.app',
     'netease-cloud-music-api-five-roan.vercel.app',
     'w7z.indevs.in',
 ];
@@ -208,6 +208,8 @@ function isUrlAllowed(url) {
 // NOTE: 仅对 NEC API 追加 cookie 查询参数（部分部署只识别 query 方式）
 const NETEASE_COOKIE_QUERY_HOSTS = [
     'w7z.indevs.in',
+    'api.i-meto.com',
+    'netease-cloud-music-api-psi-three.vercel.app',
     'netease-cloud-music-api-five-roan.vercel.app',
 ];
 

@@ -3,7 +3,7 @@
  * 提供离线缓存和快速加载支持
  */
 
-const CACHE_NAME = 'music888-v3';
+const CACHE_NAME = 'music888-v5';
 
 // NOTE: 静态资源列表 - 只缓存确定存在的核心资源
 // 构建后的 JS/CSS 文件名包含哈希值，无法预先知道，采用运行时缓存策略
@@ -13,11 +13,11 @@ const STATIC_ASSETS = [
 
 // 安装事件 - 预缓存静态资源
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('正在缓存静态资源...');
-                // NOTE: 使用 Promise.allSettled 避免单个资源失败导致整体失败
                 return Promise.allSettled(
                     STATIC_ASSETS.map(url =>
                         cache.add(url).catch(err => {
@@ -27,23 +27,28 @@ self.addEventListener('install', (event) => {
                     )
                 );
             })
-            .then(() => self.skipWaiting())
             .catch(err => {
                 console.error('Service Worker 安装失败:', err);
             })
     );
 });
 
-// 激活事件 - 清理旧缓存
+// 激活事件 - 彻底清理旧缓存并接管页面
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME)
-                    .map((name) => caches.delete(name))
-            );
-        }).then(() => self.clients.claim())
+        Promise.all([
+            self.clients.claim(),
+            caches.keys().then((cacheNames) => {
+                return Promise.all(
+                    cacheNames
+                        .filter((name) => name !== CACHE_NAME)
+                        .map((name) => {
+                            console.log('[SW] 清理旧缓存:', name);
+                            return caches.delete(name);
+                        })
+                );
+            })
+        ])
     );
 });
 

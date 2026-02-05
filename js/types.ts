@@ -276,6 +276,12 @@ export interface MetingSong {
     lrc?: string;
     /** 播放 URL */
     url?: string;
+    /** URL ID (用于搜索结果回退) */
+    url_id?: string;
+    /** 封面图片 ID */
+    pic_id?: string;
+    /** 歌词 ID */
+    lyric_id?: string;
     /** 音乐源 */
     source?: string;
 }
