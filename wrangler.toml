@@ -7,6 +7,4 @@ compatibility_date = "2024-04-03"
 # NETEASE_VIP_COOKIE = ""
 # EXTRA_ALLOWED_HOSTS = ""
 
-[[routes]]
-pattern = "music.weny888.com"
-custom_domain = true
+# 自定义域名 (music.weny888.com) 请在 Cloudflare Pages Dashboard 中配置
