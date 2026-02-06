@@ -23,6 +23,7 @@ import {
 import { fadeIn, fadeOut, persistVolume, setSavedVolume } from './effects';
 import { addToHistory } from './playlist';
 import { parseLyrics } from './lyrics';
+import { updateMediaSession } from './events';
 
 /**
  * 播放指定索引的歌曲
@@ -92,6 +93,7 @@ async function loadExtraResources(song: Song): Promise<void> {
         // 获取封面
         const cover = await api.getAlbumCoverUrl(song);
         ui.updateCurrentSongInfo(song, cover);
+        updateMediaSession(song, cover);
 
         // 获取歌词
         const lyricsRes = await api.getLyrics(song);

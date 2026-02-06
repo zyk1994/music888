@@ -16,7 +16,7 @@ import {
     getCurrentSong,
     currentPlayRequestId
 } from './core';
-import { nextSong } from './control';
+import { nextSong, previousSong, togglePlay } from './control';
 import { fadeIn, fadeOut } from './effects';
 
 /** 正在进行的跨源搜索状态 */
@@ -69,6 +69,19 @@ export function bindAudioEvents(): void {
         logger.error('Audio Error:', audioPlayer.error?.message);
         ui.showNotification('音频资源加载错误', 'error');
     });
+
+    // 页面可见性变化：恢复被系统中断的播放
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && isPlaying && audioPlayer.paused) {
+            logger.debug('页面恢复可见，尝试恢复播放');
+            audioPlayer.play().catch(() => {});
+        }
+        // 更新 Media Session position state
+        updatePositionState();
+    });
+
+    // 绑定 Media Session 控制按钮
+    bindMediaSessionActions();
 }
 
 /**
@@ -131,7 +144,64 @@ export function updateMediaSession(song: Song, coverUrl: string): void {
             title: song.name,
             artist: Array.isArray(song.artist) ? song.artist.join('/') : song.artist,
             album: song.album,
-            artwork: [{ src: coverUrl, sizes: '512x512', type: 'image/jpeg' }]
+            artwork: coverUrl ? [{ src: coverUrl, sizes: '512x512', type: 'image/jpeg' }] : []
         });
+        updatePositionState();
+    }
+}
+
+/**
+ * 绑定 Media Session 操作（锁屏/通知栏控制）
+ */
+function bindMediaSessionActions(): void {
+    if (!('mediaSession' in navigator)) return;
+
+    const actions: Array<[MediaSessionAction, () => void]> = [
+        ['play', () => { audioPlayer.play().catch(() => {}); }],
+        ['pause', () => { audioPlayer.pause(); }],
+        ['previoustrack', () => { previousSong(); }],
+        ['nexttrack', () => { nextSong(); }],
+        ['seekto', (details?: MediaSessionActionDetails) => {
+            if (details && details.seekTime != null && isFinite(audioPlayer.duration)) {
+                audioPlayer.currentTime = details.seekTime;
+                updatePositionState();
+            }
+        }],
+        ['seekbackward', (details?: MediaSessionActionDetails) => {
+            const offset = details?.seekOffset || 10;
+            audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - offset);
+            updatePositionState();
+        }],
+        ['seekforward', (details?: MediaSessionActionDetails) => {
+            const offset = details?.seekOffset || 10;
+            audioPlayer.currentTime = Math.min(audioPlayer.duration || 0, audioPlayer.currentTime + offset);
+            updatePositionState();
+        }],
+    ];
+
+    for (const [action, handler] of actions) {
+        try {
+            navigator.mediaSession.setActionHandler(action, handler as MediaSessionActionHandler);
+        } catch {
+            logger.debug(`Media Session action "${action}" 不受支持`);
+        }
+    }
+}
+
+/**
+ * 更新 Media Session 播放位置状态
+ */
+function updatePositionState(): void {
+    if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+    if (!audioPlayer.duration || !isFinite(audioPlayer.duration)) return;
+
+    try {
+        navigator.mediaSession.setPositionState({
+            duration: audioPlayer.duration,
+            playbackRate: audioPlayer.playbackRate,
+            position: audioPlayer.currentTime
+        });
+    } catch {
+        // 部分浏览器可能不支持
     }
 }
