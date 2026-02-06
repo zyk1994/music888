@@ -12,6 +12,7 @@
  * 8. mobile.css - 移动端适配及响应式
  */
 
+@import '@fortawesome/fontawesome-free/css/all.min.css';
 @import 'variables.css';
 @import 'base.css';
 @import 'layout.css';

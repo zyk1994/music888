@@ -710,6 +710,8 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
@@ -749,6 +751,7 @@
     gap: 8px;
     margin-bottom: 15px;
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .filter-btn {
