@@ -135,11 +135,13 @@
     /* 播放器区域不滚动，一屏完整展示 */
     .player-section {
         overflow-y: hidden !important;
+        overflow-x: hidden !important;
     }
 
     /* "我的"区域内部滚动由子元素控制 */
     .my-panel-section {
         overflow-y: hidden !important;
+        overflow-x: hidden !important;
     }
 
     .navbar {
@@ -198,6 +200,7 @@
         padding-bottom: 0;
         justify-content: space-evenly;
         gap: 0;
+        overflow: hidden;
     }
 
     /* === 左栏标签页 - 4个标签紧凑排列 === */
@@ -300,16 +303,8 @@
     }
 
     .filter-bar {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        padding-bottom: 5px;
+        flex-wrap: wrap;
         gap: 6px;
-    }
-
-    .filter-bar::-webkit-scrollbar {
-        display: none;
     }
 
     .filter-btn {
@@ -495,6 +490,11 @@
         min-height: 0;
         flex: 1;
         overflow-y: auto;
+        scrollbar-width: none;
+    }
+
+    .my-tab-content::-webkit-scrollbar {
+        display: none;
     }
 
     /* 右栏歌单输入框移动端 */
