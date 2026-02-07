@@ -145,16 +145,10 @@ export async function onRequest(context) {
         });
     }
 
-    // 2. Turnstile 验证
+    // 2. Turnstile 验证（有 token 则验证，无 token 放行）
     const turnstileSecret = env.TURNSTILE_SECRET_KEY;
     const turnstileToken = request.headers.get('X-Turnstile-Token');
-    if (turnstileSecret) {
-        if (!turnstileToken) {
-            return new Response(JSON.stringify({ error: 'Turnstile token required' }), {
-                status: 403,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
+    if (turnstileSecret && turnstileToken) {
         try {
             const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
                 method: 'POST',
