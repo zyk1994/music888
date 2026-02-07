@@ -702,11 +702,9 @@ async function handleArtistClick(artist: ArtistInfo): Promise<void> {
     artistAlbumsHasMore = false;
     artistDetailCurrentId = artist.id;
 
-    // 并行加载简介和专辑
-    const [descResult, albumsResult] = await Promise.all([
-        api.getArtistDesc(artist.id).catch(() => ({ briefDesc: '', introduction: [] })),
-        api.getArtistAlbums(artist.id, 30, 0).catch(() => ({ albums: [], more: false }))
-    ]);
+    // 顺序加载简介和专辑（Turnstile token 一次性，不能并行请求）
+    const descResult = await api.getArtistDesc(artist.id).catch(() => ({ briefDesc: '', introduction: [] }));
+    const albumsResult = await api.getArtistAlbums(artist.id, 30, 0).catch(() => ({ albums: [], more: false }));
 
     // 渲染简介
     if (artistDesc) {
