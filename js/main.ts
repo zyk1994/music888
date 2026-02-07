@@ -509,6 +509,17 @@ async function handleSearch(): Promise<void> {
     // 搜索时自动切换到搜索标签
     switchTab('hot');
 
+    // 移动端：自动切换到内容页面（page 0）以显示搜索结果
+    if (window.innerWidth <= 768) {
+        switchMobilePage(0);
+    }
+
+    // 搜索结果滚动到顶部
+    const searchResults = document.getElementById('searchResults');
+    if (searchResults) {
+        searchResults.scrollTop = 0;
+    }
+
     ui.showLoading('searchResults');
 
     try {
@@ -531,6 +542,14 @@ async function handleSearch(): Promise<void> {
  * 处理探索雷达请求
  */
 async function handleExplore(): Promise<void> {
+    // 自动切换到搜索标签
+    switchTab('hot');
+
+    // 移动端：自动切换到内容页面（page 0）
+    if (window.innerWidth <= 768) {
+        switchMobilePage(0);
+    }
+
     ui.showLoading('searchResults');
 
     try {
