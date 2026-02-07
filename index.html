@@ -284,28 +284,16 @@
                 <button class="my-tab-btn" data-mytab="history"><i class="fas fa-history"></i> 历史</button>
             </div>
             <div id="myPlaylistPanel" class="my-tab-content active">
-                <!-- 用户ID输入 -->
                 <div class="playlist-input-container">
-                    <input type="text" id="userIdInput" class="playlist-input"
+                    <select id="playlistActionSelect" class="playlist-select">
+                        <option value="user">用户歌单</option>
+                        <option value="radio">电台FM</option>
+                        <option value="playlist">歌单解析</option>
+                    </select>
+                    <input type="text" id="playlistActionInput" class="playlist-input"
                         placeholder="输入网易云用户ID...">
-                    <button class="playlist-btn" id="loadUserPlaylistBtn">
-                        <i class="fas fa-user"></i> 加载
-                    </button>
-                </div>
-                <!-- 电台ID输入 -->
-                <div class="playlist-input-container">
-                    <input type="text" id="radioIdInput" class="playlist-input"
-                        placeholder="输入电台ID...">
-                    <button class="playlist-btn" id="addRadioBtn">
-                        <i class="fas fa-podcast"></i> 添加
-                    </button>
-                </div>
-                <!-- 歌单ID解析（保留原功能） -->
-                <div class="playlist-input-container">
-                    <input type="text" id="playlistIdInput" class="playlist-input"
-                        placeholder="输入歌单ID或链接...">
-                    <button class="playlist-btn" id="parsePlaylistBtn">
-                        <i class="fas fa-cloud-download-alt"></i> 解析
+                    <button class="playlist-btn" id="playlistActionBtn">
+                        <i class="fas fa-user"></i> <span>加载</span>
                     </button>
                 </div>
                 <!-- 合并歌单/电台列表 -->

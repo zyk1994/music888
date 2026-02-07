@@ -195,6 +195,35 @@
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
+    align-items: center;
+}
+
+.playlist-select {
+    padding: 12px 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.playlist-select option {
+    background: #2a2a2a;
+    color: #fff;
+    padding: 8px;
+}
+
+.playlist-select:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.playlist-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px rgba(255, 107, 107, 0.2);
 }
 
 .playlist-input {

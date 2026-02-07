@@ -171,9 +171,8 @@ function bindEventListeners(): void {
     const searchBtn = getElement('.search-btn');
     const searchInput = getElement<HTMLInputElement>('#searchInput');
     const exploreBtn = getElement('#exploreRadarBtn');
-    const playlistBtn = getElement('#parsePlaylistBtn');
-    const loadUserPlaylistBtn = getElement('#loadUserPlaylistBtn');
-    const addRadioBtn = getElement('#addRadioBtn');
+    const playlistActionSelect = getElement<HTMLSelectElement>('#playlistActionSelect');
+    const playlistActionBtn = getElement('#playlistActionBtn');
 
     if (searchBtn) {
         searchBtn.addEventListener('click', handleSearch);
@@ -192,16 +191,54 @@ function bindEventListeners(): void {
         exploreBtn.addEventListener('click', handleExplore);
     }
 
-    if (playlistBtn) {
-        playlistBtn.addEventListener('click', handleParsePlaylist);
+    // 下拉选择器切换事件
+    if (playlistActionSelect) {
+        playlistActionSelect.addEventListener('change', () => {
+            const input = getElement<HTMLInputElement>('#playlistActionInput');
+            const btn = getElement('#playlistActionBtn');
+            if (!input || !btn) return;
+
+            const icon = btn.querySelector('i');
+            const span = btn.querySelector('span');
+
+            switch (playlistActionSelect.value) {
+                case 'user':
+                    input.placeholder = '输入网易云用户ID...';
+                    if (icon) icon.className = 'fas fa-user';
+                    if (span) span.textContent = '加载';
+                    break;
+                case 'radio':
+                    input.placeholder = '输入电台ID...';
+                    if (icon) icon.className = 'fas fa-podcast';
+                    if (span) span.textContent = '添加';
+                    break;
+                case 'playlist':
+                    input.placeholder = '输入歌单ID或链接...';
+                    if (icon) icon.className = 'fas fa-cloud-download-alt';
+                    if (span) span.textContent = '解析';
+                    break;
+            }
+        });
     }
 
-    if (loadUserPlaylistBtn) {
-        loadUserPlaylistBtn.addEventListener('click', handleLoadUserPlaylists);
-    }
+    // 统一按钮分发
+    if (playlistActionBtn) {
+        playlistActionBtn.addEventListener('click', () => {
+            const select = getElement<HTMLSelectElement>('#playlistActionSelect');
+            if (!select) return;
 
-    if (addRadioBtn) {
-        addRadioBtn.addEventListener('click', handleAddRadio);
+            switch (select.value) {
+                case 'user':
+                    handleLoadUserPlaylists();
+                    break;
+                case 'radio':
+                    handleAddRadio();
+                    break;
+                case 'playlist':
+                    handleParsePlaylist();
+                    break;
+            }
+        });
     }
 
     // Player controls
@@ -499,7 +536,7 @@ async function handleExplore(): Promise<void> {
  * 处理歌单解析请求
  */
 async function handleParsePlaylist(): Promise<void> {
-    const playlistIdInput = getElement<HTMLInputElement>('#playlistIdInput');
+    const playlistIdInput = getElement<HTMLInputElement>('#playlistActionInput');
 
     if (!playlistIdInput) return;
 
@@ -866,7 +903,7 @@ function loadPlayHistory(): void {
  * 加载用户公开歌单
  */
 async function handleLoadUserPlaylists(): Promise<void> {
-    const userIdInput = getElement<HTMLInputElement>('#userIdInput');
+    const userIdInput = getElement<HTMLInputElement>('#playlistActionInput');
     if (!userIdInput) return;
 
     const uid = userIdInput.value.trim();
@@ -899,7 +936,7 @@ async function handleLoadUserPlaylists(): Promise<void> {
  * 添加电台
  */
 async function handleAddRadio(): Promise<void> {
-    const radioIdInput = getElement<HTMLInputElement>('#radioIdInput');
+    const radioIdInput = getElement<HTMLInputElement>('#playlistActionInput');
     if (!radioIdInput) return;
 
     const rid = radioIdInput.value.trim();
@@ -1074,10 +1111,14 @@ async function restoreUserPlaylists(): Promise<void> {
 
     if (!savedUserId && savedRadios.length === 0) return;
 
-    // 填入已保存的用户ID
-    const userIdInput = getElement<HTMLInputElement>('#userIdInput');
-    if (userIdInput && savedUserId) {
-        userIdInput.value = savedUserId;
+    // 填入已保存的用户ID，并确保 select 选中"用户歌单"
+    const actionInput = getElement<HTMLInputElement>('#playlistActionInput');
+    const actionSelect = getElement<HTMLSelectElement>('#playlistActionSelect');
+    if (actionInput && savedUserId) {
+        actionInput.value = savedUserId;
+    }
+    if (actionSelect) {
+        actionSelect.value = 'user';
     }
 
     const container = getElement('#userPlaylistsContainer');
@@ -1127,9 +1168,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // NOTE: 快速歌单ID事件委托（替代 inline onclick）
     document.querySelectorAll('.quick-id[data-playlist-id]').forEach(el => {
         el.addEventListener('click', () => {
-            const playlistInput = getElement<HTMLInputElement>('#playlistIdInput');
+            const playlistInput = getElement<HTMLInputElement>('#playlistActionInput');
+            const playlistSelect = getElement<HTMLSelectElement>('#playlistActionSelect');
             if (playlistInput) {
                 playlistInput.value = (el as HTMLElement).dataset.playlistId || '';
+            }
+            // 自动切换到歌单解析模式
+            if (playlistSelect) {
+                playlistSelect.value = 'playlist';
+                playlistSelect.dispatchEvent(new Event('change'));
             }
         });
     });

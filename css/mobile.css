@@ -497,26 +497,32 @@
         display: none;
     }
 
-    /* 右栏歌单输入框移动端 */
+    /* 右栏歌单输入框移动端 - 单行紧凑布局 */
     .my-panel-section .playlist-input-container {
-        flex-direction: column;
+        flex-wrap: wrap;
         gap: 8px;
     }
 
+    .my-panel-section .playlist-select {
+        padding: 10px 12px;
+        font-size: 13px;
+        min-width: 90px;
+    }
+
     .my-panel-section .playlist-input {
-        width: 100%;
+        flex: 1;
+        min-width: 120px;
         font-size: 14px;
         padding: 10px 15px;
     }
 
     .my-panel-section .playlist-btn {
-        width: 100%;
         padding: 10px 15px;
         font-size: 14px;
-        justify-content: center;
         display: flex;
         align-items: center;
         gap: 6px;
+        flex-shrink: 0;
     }
 
     .my-section-header {
